@@ -135,6 +135,7 @@ class GreenFingerManager:
         self.species: dict[str, dict[str, Any]] = {}
         self.entities: dict[str, Any] = {}
         self.known_subentries: set[str] = set()
+        self.known_data: dict[str, Any] = {}
 
     # ---------------------------------------------------------------- basics
     @property
@@ -302,6 +303,16 @@ class GreenFingerManager:
         d = clean_date(when) or dt_util.now().date().isoformat()
         key = "last_watered" if kind == "water" else "last_fertilised"
         self.hass.config_entries.async_update_subentry(self.entry, sub, data={**dict(sub.data), key: d})
+
+    async def async_fill_missing_species(self) -> None:
+        """Download the species record of every plant that has none cached yet."""
+        if self.client is None:
+            return
+        for sub in list(self.entry.subentries.values()):
+            pid = str(sub.data.get("species") or "").strip().lower()
+            if pid and (self.species.get(pid) or {}).get("watering") is None:
+                await self.async_get_species(pid)
+        self.async_refresh_all()
 
     async def async_refresh_species(self, subentry_id: str | None = None) -> None:
         ids = [subentry_id] if subentry_id else [

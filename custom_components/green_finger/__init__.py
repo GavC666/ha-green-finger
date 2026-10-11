@@ -38,6 +38,25 @@ def _manager(hass: HomeAssistant) -> GreenFingerManager:
     raise ServiceValidationError(translation_domain=DOMAIN, translation_key="not_loaded")
 
 
+async def _async_register_resource(hass: HomeAssistant, url: str) -> None:
+    """Make sure the card is also a Lovelace resource (storage mode only), kept at the current version."""
+    resources = getattr(hass.data.get("lovelace"), "resources", None)
+    if resources is None or not hasattr(resources, "async_create_item"):
+        return  # YAML-mode resources are managed by the user
+    try:
+        if not getattr(resources, "loaded", True):
+            await resources.async_load()
+            resources.loaded = True
+        for item in resources.async_items():
+            if str(item.get("url", "")).split("?")[0] == FRONTEND_URL:
+                if item["url"] != url:
+                    await resources.async_update_item(item["id"], {"res_type": "module", "url": url})
+                return
+        await resources.async_create_item({"res_type": "module", "url": url})
+    except Exception:  # noqa: BLE001 - never block setup because of a dashboard resource
+        _LOGGER.debug("Could not register the Lovelace resource for the card", exc_info=True)
+
+
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Register the card and the integration-level services."""
     integration = await async_get_integration(hass, DOMAIN)
@@ -45,6 +64,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     if card.exists():
         await hass.http.async_register_static_paths([StaticPathConfig(FRONTEND_URL, str(card), False)])
         add_extra_js_url(hass, f"{FRONTEND_URL}?v={integration.version}")
+        await _async_register_resource(hass, f"{FRONTEND_URL}?v={integration.version}")
 
     async def search_species(call: ServiceCall) -> dict[str, Any]:
         try:
@@ -97,18 +117,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreenFingerConfigEntry) 
     manager = GreenFingerManager(hass, entry, client)
     await manager.async_load()
     manager.known_subentries = set(entry.subentries)
+    manager.known_data = dict(entry.data)
     entry.runtime_data = manager
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+    if client is not None:
+        entry.async_create_background_task(hass, manager.async_fill_missing_species(), "green_finger_species")
     return True
 
 
 async def _async_update_listener(hass: HomeAssistant, entry: GreenFingerConfigEntry) -> None:
-    """Reload when plants are added or removed; otherwise just recompute the entities."""
+    """Reload when plants are added/removed or the credentials change; otherwise recompute."""
     manager = entry.runtime_data
-    if set(entry.subentries) != manager.known_subentries:
-        await hass.config_entries.async_reload(entry.entry_id)
+    if set(entry.subentries) != manager.known_subentries or dict(entry.data) != manager.known_data:
+        hass.config_entries.async_schedule_reload(entry.entry_id)
         return
     manager.async_refresh_all()
 

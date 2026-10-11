@@ -113,7 +113,7 @@ class GreenFingerConfigFlow(ConfigFlow, domain=DOMAIN):
         data, form = await self._credentials_step("reconfigure", user_input, dict(entry.data))
         if data is None:
             return form  # type: ignore[return-value]
-        return self.async_update_reload_and_abort(entry, data_updates=data)
+        return self.async_update_and_abort(entry, data_updates=data)
 
 
 class PlantSubentryFlow(ConfigSubentryFlow):
