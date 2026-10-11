@@ -14,7 +14,7 @@ HAS_HA_PLUGIN = importlib.util.find_spec("pytest_homeassistant_custom_component"
 if HAS_HA_PLUGIN:
     pytest_plugins = "pytest_homeassistant_custom_component"
 else:
-    collect_ignore = ["test_integration.py", "test_sensor_rules.py", "test_search.py"]
+    collect_ignore = ["test_integration.py", "test_sensor_rules.py", "test_search.py", "test_openplantbook.py"]
 
 
 if HAS_HA_PLUGIN:

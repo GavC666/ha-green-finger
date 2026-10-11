@@ -99,8 +99,9 @@ async def test_no_match_anywhere(hass: HomeAssistant) -> None:
 
 
 async def test_rate_limit_gives_a_readable_error(hass: HomeAssistant) -> None:
-    fake = FakeClient({"ficus": OpenPlantbookRateLimit()})
+    fake = FakeClient({"ficus": OpenPlantbookRateLimit(42)})
     await _setup(hass, fake)
     with pytest.raises(ServiceValidationError) as err:
         await _search(hass, "ficus")
     assert err.value.translation_key == "rate_limited"
+    assert err.value.translation_placeholders == {"seconds": "42"}

@@ -84,7 +84,10 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         try:
             return await _manager(hass).async_search(call.data["query"])
         except OpenPlantbookRateLimit as err:
-            raise ServiceValidationError(translation_domain=DOMAIN, translation_key="rate_limited") from err
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="rate_limited",
+                translation_placeholders={"seconds": str(err.retry_after)},
+            ) from err
         except OpenPlantbookAuthError as err:
             raise ServiceValidationError(translation_domain=DOMAIN, translation_key="invalid_auth") from err
         except OpenPlantbookConnectionError as err:

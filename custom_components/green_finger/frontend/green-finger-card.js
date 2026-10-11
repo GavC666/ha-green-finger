@@ -3,7 +3,7 @@
  * gauges, quick actions, care tips and add / edit forms that call the green_finger services.
  * Usage:  type: custom:green-finger-card   (optional: title, icon) */
 (() => {
-  const VER = '0.1.4';
+  const VER = '0.1.5';
   const DOMAIN = 'green_finger';
   const GRN = '#34d058', AMB = '#ffb000', RED = '#ff3b30', MUT = '#9aa5b8';
   const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

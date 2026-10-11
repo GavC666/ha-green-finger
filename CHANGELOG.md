@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.5
+- OpenPlantbook rate limit: after a "too many requests" answer nothing more is sent until the wait the
+  API asked for is over, and the message says how long to wait.
+- README: the in-page camera needs https; OpenPlantbook request limits explained.
+
 ## 0.1.4
 - Search: one request per search (details are fetched only for the species you pick), so OpenPlantbook is
   not rate limited; results are cached for ten minutes.

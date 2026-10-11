@@ -10,6 +10,7 @@ import aiohttp
 
 BASE_URL = "https://open.plantbook.io/api/v1"
 _TIMEOUT = aiohttp.ClientTimeout(total=25)
+DEFAULT_RETRY_AFTER = 60
 
 
 class OpenPlantbookError(Exception):
@@ -25,7 +26,19 @@ class OpenPlantbookAuthError(OpenPlantbookError):
 
 
 class OpenPlantbookRateLimit(OpenPlantbookError):
-    """Too many requests."""
+    """Too many requests; ``retry_after`` is the number of seconds to wait."""
+
+    def __init__(self, retry_after: int = DEFAULT_RETRY_AFTER) -> None:
+        super().__init__(f"rate limited, retry in {retry_after}s")
+        self.retry_after = retry_after
+
+
+def _retry_after(headers: Any) -> int:
+    """Seconds the API asked us to wait (Retry-After), within sane bounds."""
+    try:
+        return max(5, min(int(float(headers.get("Retry-After"))), 3600))
+    except (TypeError, ValueError, AttributeError):
+        return DEFAULT_RETRY_AFTER
 
 
 class OpenPlantbookClient:
@@ -37,6 +50,18 @@ class OpenPlantbookClient:
         self._client_secret = client_secret
         self._token: str | None = None
         self._expires = 0.0
+        self._blocked_until = 0.0
+
+    def _check_blocked(self) -> None:
+        """Do not send anything while the API asked us to back off (that only prolongs the limit)."""
+        remaining = self._blocked_until - time.monotonic()
+        if remaining > 0:
+            raise OpenPlantbookRateLimit(max(1, int(remaining)))
+
+    def _rate_limited(self, headers: Any) -> OpenPlantbookRateLimit:
+        wait = _retry_after(headers)
+        self._blocked_until = time.monotonic() + wait
+        return OpenPlantbookRateLimit(wait)
 
     async def async_validate(self) -> None:
         """Raise if the credentials do not work."""
@@ -44,6 +69,7 @@ class OpenPlantbookClient:
         await self._async_token()
 
     async def _async_token(self) -> str:
+        self._check_blocked()
         if self._token and self._expires > time.monotonic() + 300:
             return self._token
         data = {
@@ -54,7 +80,7 @@ class OpenPlantbookClient:
         try:
             async with self._session.post(f"{BASE_URL}/token/", data=data, timeout=_TIMEOUT) as resp:
                 if resp.status == 429:
-                    raise OpenPlantbookRateLimit
+                    raise self._rate_limited(resp.headers)
                 payload = await resp.json(content_type=None)
         except (aiohttp.ClientError, asyncio.TimeoutError) as err:
             raise OpenPlantbookConnectionError(str(err)) from err
@@ -78,7 +104,7 @@ class OpenPlantbookClient:
                 if resp.status == 404:
                     return None
                 if resp.status == 429:
-                    raise OpenPlantbookRateLimit
+                    raise self._rate_limited(resp.headers)
                 resp.raise_for_status()
                 return await resp.json(content_type=None)
         except (aiohttp.ClientError, asyncio.TimeoutError) as err:

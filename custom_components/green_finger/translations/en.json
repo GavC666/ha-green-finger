@@ -144,7 +144,7 @@
       "message": "The Green Finger is not set up."
     },
     "rate_limited": {
-      "message": "OpenPlantbook is limiting requests right now. Wait a minute and try again; species you already looked up are cached."
+      "message": "OpenPlantbook is limiting requests right now. Try again in about {seconds} seconds; species you already looked up are cached."
     },
     "invalid_auth": {
       "message": "OpenPlantbook rejected the client ID or secret. Update them with Reconfigure on the integration page."

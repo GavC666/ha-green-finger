@@ -23,6 +23,8 @@ location and pictures - plus a dashboard card to look after them all.
 - [Assign a soil sensor](#assign-a-soil-sensor)
 - [Schedules explained](#schedules-explained)
 - [The dashboard card](#the-dashboard-card)
+- [Own pictures and the camera](#own-pictures-and-the-camera)
+- [OpenPlantbook request limits](#openplantbook-request-limits)
 - [Entities and attributes](#entities-and-attributes)
 - [Services and automations](#services-and-automations)
 - [Updating, removing, backing up](#updating-removing-backing-up)
@@ -329,6 +331,35 @@ data:
   backup); downloaded species data is cached in `.storage/green_finger.species`. Pictures you upload
   are stored by Home Assistant's image upload and are also in backups.
 
+## Own pictures and the camera
+
+In the add / edit form, **Choose file** picks an existing picture and **Take photo** takes one with the
+device camera.
+
+- **Over https** (for example your Nabu Casa address, or any `https://` address of your Home Assistant) the
+  card opens a live camera preview with *Capture* / *Cancel*.
+- **Over plain http** (for example `http://homeassistant.local:8123`) browsers do not allow camera access
+  to a web page. *Take photo* then hands over to the device's own picker: on Android that is usually the
+  photo chooser (many apps list the camera in it); the Companion app cannot be told to open the camera
+  directly. For the live camera, open Home Assistant through its https address.
+- The picture is stored by Home Assistant's `image_upload` integration (part of the default setup).
+
+## OpenPlantbook request limits
+
+OpenPlantbook answers *Too Many Requests* when an account makes too many calls, and it does not publish the
+numbers. Things to know:
+
+- The limit belongs to your **client ID**, so everything that uses the same credentials shares it: this
+  integration, the OpenPlantbook integration, and any automation or script that calls
+  `openplantbook.search` / `openplantbook.get` (and that integration's sensor-data upload).
+- This integration is economical: a search is one request, details are fetched only for the species you
+  choose, results are cached for ten minutes and species data is stored permanently. After a *Too Many
+  Requests* answer it sends nothing until the wait the API asked for is over.
+- If you hit the limit, wait a little (the message says how long) and try again. Species you already added
+  keep working; only searching and downloading new species data are affected.
+- To use fewer requests overall, avoid automations that search on every keystroke or refresh every species
+  at start-up, and consider switching off the sensor-data upload of the OpenPlantbook integration.
+
 ## Troubleshooting
 
 | Problem | What to try |
@@ -336,7 +367,7 @@ data:
 | The card shows *Custom element doesn't exist* | Hard refresh the browser (`Ctrl+F5`); make sure the integration is set up and Home Assistant was restarted after installing |
 | Species search says *invalid authentication* | Re-copy the client ID and secret from <https://open.plantbook.io/apikey/show/>, then *Reconfigure* the integration |
 | Search finds nothing | Common names are looked up too, but OpenPlantbook may not list the plant; try the Latin name or fewer letters |
-| *Rate limiting* error | The daily OpenPlantbook limit was reached; wait and retry. Already searched species are cached |
+| *Rate limiting* error | OpenPlantbook is limiting the account; wait for the time in the message. See [OpenPlantbook request limits](#openplantbook-request-limits) |
 | No picture upload on the card | Home Assistant's `image_upload` integration must be enabled (it is in `default_config`) |
 | A sensor cannot be chosen (greyed out) | It is already assigned to another plant; a soil sensor can belong to one plant only |
 | Temperature / battery missing | The moisture sensor's device must also have temperature / battery sensors that are enabled |
