@@ -1,14 +1,14 @@
 {
   "domain": "green_finger",
   "name": "The Green Finger",
+  "after_dependencies": ["image_upload"],
   "codeowners": ["@GavC666"],
   "config_flow": true,
   "dependencies": ["http", "frontend"],
-  "after_dependencies": ["image_upload"],
   "documentation": "https://github.com/GavC666/ha-green-finger",
   "integration_type": "service",
   "iot_class": "cloud_polling",
-  "issue_tracker": "https://github.com/GavC666/ha-green-finger/issues",
+  "issue_tracker": "https://github.com/GavC666/ha-green-finger",
   "requirements": [],
   "single_config_entry": true,
   "version": "0.1.0"

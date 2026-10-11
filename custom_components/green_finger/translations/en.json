@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "The Green Finger",
-        "description": "Connect to [OpenPlantbook](https://open.plantbook.io) to look up species, care tips and pictures when you add a plant. Create a free account and an API client there, then paste the client ID and secret. You can leave both empty and enter everything by hand.",
+        "description": "Connect to [OpenPlantbook]({url}) to look up species, care tips and pictures when you add a plant. Create a free account there, open its API key page and paste the client ID and secret. You can leave both empty and enter everything by hand.",
         "data": {
           "client_id": "Client ID",
           "client_secret": "Client secret"
@@ -206,7 +206,7 @@
         "temperature_range": {"name": "Ideal temperature", "description": "[min, max] in degrees Celsius."},
         "npk": {"name": "N-P-K", "description": "[N, P, K] numbers of the ideal fertiliser."},
         "fertiliser_name": {"name": "Fertiliser", "description": "Product name."},
-        "soil_mix": {"name": "Soil mix", "description": "Text lines such as 30% perlite, or a list of {name, percent}."},
+        "soil_mix": {"name": "Soil mix", "description": "Text lines such as 30% perlite, or a list of name and percent pairs."},
         "soil_notes": {"name": "Soil notes", "description": "Free text."},
         "notes": {"name": "Notes", "description": "Free text."}
       }
@@ -231,7 +231,7 @@
         "temperature_range": {"name": "Ideal temperature", "description": "[min, max] in degrees Celsius."},
         "npk": {"name": "N-P-K", "description": "[N, P, K] numbers of the ideal fertiliser."},
         "fertiliser_name": {"name": "Fertiliser", "description": "Product name."},
-        "soil_mix": {"name": "Soil mix", "description": "Text lines such as 30% perlite, or a list of {name, percent}."},
+        "soil_mix": {"name": "Soil mix", "description": "Text lines such as 30% perlite, or a list of name and percent pairs."},
         "soil_notes": {"name": "Soil notes", "description": "Free text."},
         "notes": {"name": "Notes", "description": "Free text."}
       }

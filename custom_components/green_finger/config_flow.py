@@ -94,7 +94,10 @@ class GreenFingerConfigFlow(ConfigFlow, domain=DOMAIN):
             vol.Optional(CONF_CLIENT_SECRET): selector.TextSelector(
                 selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)),
         })
-        return None, self.async_show_form(step_id=step_id, data_schema=schema, errors=errors)
+        return None, self.async_show_form(
+            step_id=step_id, data_schema=schema, errors=errors,
+            description_placeholders={"url": "https://open.plantbook.io"},
+        )
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         data, form = await self._credentials_step("user", user_input, {})
