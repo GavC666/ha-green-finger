@@ -15,6 +15,7 @@ from homeassistant.util import dt as dt_util
 
 from . import logic
 from .const import DOMAIN, SUBENTRY_PLANT
+from .entity import find_device
 from .openplantbook import OpenPlantbookClient, OpenPlantbookError
 
 _LOGGER = logging.getLogger(__name__)
@@ -286,7 +287,7 @@ class GreenFingerManager:
     @callback
     def apply_area(self, subentry_id: str, area_id: str | None) -> None:
         reg = dr.async_get(self.hass)
-        device = reg.async_get_device(identifiers={(DOMAIN, subentry_id)})
+        device = find_device(self.hass, self.entry.entry_id, subentry_id)
         if device:
             reg.async_update_device(device.id, area_id=area_id or None)
 

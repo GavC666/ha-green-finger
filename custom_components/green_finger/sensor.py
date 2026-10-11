@@ -15,13 +15,13 @@ from homeassistant.helpers import (
     entity_platform,
     entity_registry as er,
 )
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event, async_track_time_change
 from homeassistant.util import dt as dt_util
 
 from . import logic
 from .const import DOMAIN, STATES, SUBENTRY_PLANT
+from .entity import device_info, find_device
 from .manager import GreenFingerManager
 from .schemas import UPDATE_SCHEMA
 
@@ -62,16 +62,7 @@ class GreenFingerSensor(SensorEntity):
         self._attr_unique_id = subentry_id
         self._data: dict[str, Any] | None = None
         self._unsub_states: Any = None
-        plant = manager.plant(subentry_id) or {}
-        area = ar.async_get(manager.hass).async_get_area(plant["area"]) if plant.get("area") else None
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, subentry_id)},
-            name=plant.get("common_name") or plant.get("name"),
-            manufacturer="The Green Finger",
-            model=(manager.species.get(plant.get("species") or "") or {}).get("display_pid") or "Plant",
-            entry_type=dr.DeviceEntryType.SERVICE,
-            suggested_area=area.name if area else None,
-        )
+        self._attr_device_info = device_info(manager, subentry_id)
 
     # ----------------------------------------------------------- properties
     @property
@@ -137,7 +128,7 @@ class GreenFingerSensor(SensorEntity):
         return out, tracked
 
     def _area_name(self) -> str | None:
-        device = dr.async_get(self.hass).async_get_device(identifiers={(DOMAIN, self._subentry_id)})
+        device = find_device(self.hass, self._manager.entry.entry_id, self._subentry_id)
         if device and device.area_id:
             area = ar.async_get(self.hass).async_get_area(device.area_id)
             return area.name if area else None
@@ -191,7 +182,7 @@ class GreenFingerSensor(SensorEntity):
             return
         wanted = self._data["attributes"].get("display_name")
         reg = dr.async_get(self.hass)
-        device = reg.async_get_device(identifiers={(DOMAIN, self._subentry_id)})
+        device = find_device(self.hass, self._manager.entry.entry_id, self._subentry_id)
         if device and wanted and device.name != wanted:
             reg.async_update_device(device.id, name=wanted)
 

@@ -16,11 +16,12 @@ from homeassistant.config_entries import (
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import section
 from homeassistant.exceptions import ServiceValidationError
-from homeassistant.helpers import device_registry as dr, selector
+from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from . import logic
 from .const import CONF_CLIENT_ID, CONF_CLIENT_SECRET, DOMAIN, SUBENTRY_PLANT
+from .entity import find_device
 from .manager import GreenFingerManager, clean_plant_data
 from .openplantbook import (
     OpenPlantbookAuthError,
@@ -192,7 +193,7 @@ class PlantSubentryFlow(ConfigSubentryFlow):
         sub = self._get_reconfigure_subentry()
         self._reconfigure = True
         self._values = {**self.manager.default_plant(), **dict(sub.data)}
-        device = dr.async_get(self.hass).async_get_device(identifiers={(DOMAIN, sub.subentry_id)})
+        device = find_device(self.hass, self._get_entry().entry_id, sub.subentry_id)
         if device and device.area_id:
             self._values["area"] = device.area_id
         self._species = self.manager.species.get(self._values.get("species") or "")
