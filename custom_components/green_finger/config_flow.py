@@ -143,7 +143,7 @@ class PlantSubentryFlow(ConfigSubentryFlow):
                 self._values = mgr.default_plant()
                 return await self.async_step_plant()
             try:
-                self._results = await mgr.async_search(query)
+                self._results = (await mgr.async_search(query))["results"]
             except OpenPlantbookAuthError:
                 errors["base"] = "invalid_auth"
             except OpenPlantbookRateLimit:

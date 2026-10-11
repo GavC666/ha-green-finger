@@ -1,8 +1,8 @@
 """Data manager for The Green Finger: plants (config subentries), species cache, services logic."""
 from __future__ import annotations
 
-import asyncio
 import logging
+import time
 from types import MappingProxyType
 from typing import Any
 
@@ -10,12 +10,14 @@ from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from . import logic
 from .const import DOMAIN, SUBENTRY_PLANT
 from .entity import find_device
+from .gbif import async_common_name_genera
 from .openplantbook import OpenPlantbookClient, OpenPlantbookError
 
 _LOGGER = logging.getLogger(__name__)
@@ -27,7 +29,9 @@ SPECIES_KEEP = (
     "min_env_humid", "max_env_humid", "min_light_lux", "max_light_lux",
     "min_light_mmol", "max_light_mmol", "min_soil_ec", "max_soil_ec", "min_dli", "max_dli",
 )
-SEARCH_DETAIL_LIMIT = 8
+SEARCH_RESULT_LIMIT = 12
+SEARCH_GENERA = 3
+SEARCH_CACHE_SECONDS = 600
 
 
 def _invalid(key: str, **placeholders: str) -> ServiceValidationError:
@@ -136,6 +140,7 @@ class GreenFingerManager:
         self.entities: dict[str, Any] = {}
         self.known_subentries: set[str] = set()
         self.known_data: dict[str, Any] = {}
+        self._search_cache: dict[str, tuple[float, dict[str, Any]]] = {}
 
     # ---------------------------------------------------------------- basics
     @property
@@ -204,36 +209,65 @@ class GreenFingerManager:
         self._save_species()
         return data
 
-    async def async_search(self, query: str) -> list[dict[str, Any]]:
-        """Search OpenPlantbook and attach picture / ranges for the top hits."""
+    def _result_row(self, hit: dict[str, Any], via: str | None = None) -> dict[str, Any]:
+        """One search result; picture and ranges only when the species is already cached (no extra request)."""
+        pid = hit.get("pid")
+        cached = self.species.get(str(pid or "").lower()) or {}
+        return {
+            "pid": pid,
+            "display": hit.get("display_pid") or cached.get("display_pid") or pid,
+            "alias": hit.get("alias") or cached.get("alias"),
+            "image_url": cached.get("image_url"),
+            "common_names": logic.english_names(cached, self.language) if cached else [],
+            "min_soil_moist": cached.get("min_soil_moist"),
+            "max_soil_moist": cached.get("max_soil_moist"),
+            "min_temp": cached.get("min_temp"),
+            "max_temp": cached.get("max_temp"),
+            "origin": cached.get("origin"),
+            "via": via,
+        }
+
+    async def async_search(self, query: str) -> dict[str, Any]:
+        """Search OpenPlantbook: one request for the names; details are fetched only for the chosen species.
+
+        When nothing matches (OpenPlantbook mostly uses Latin names) the common name is looked up at GBIF and
+        the best matching genera are searched instead.
+        """
         query = (query or "").strip()
         if len(query) < 3:
-            return []
+            return {"results": [], "note": None}
         if self.client is None:
             raise _invalid("no_credentials")
+        key = query.lower()
+        cached = self._search_cache.get(key)
+        if cached and time.monotonic() - cached[0] < SEARCH_CACHE_SECONDS:
+            return cached[1]
+
         hits = await self.client.async_search(query)
-        pids = [h["pid"] for h in hits[:SEARCH_DETAIL_LIMIT] if h.get("pid")]
-        details = await asyncio.gather(*(self.async_get_species(p) for p in pids), return_exceptions=True)
-        results = []
-        for hit in hits[:SEARCH_DETAIL_LIMIT]:
-            pid = hit.get("pid")
-            if not pid:
-                continue
-            det = details[pids.index(pid)] if pid in pids else None
-            d = det if isinstance(det, dict) else {}
-            results.append({
-                "pid": pid,
-                "display": hit.get("display_pid") or d.get("display_pid") or pid,
-                "alias": hit.get("alias") or d.get("alias"),
-                "image_url": d.get("image_url"),
-                "common_names": logic.english_names(d, self.language),
-                "min_soil_moist": d.get("min_soil_moist"),
-                "max_soil_moist": d.get("max_soil_moist"),
-                "min_temp": d.get("min_temp"),
-                "max_temp": d.get("max_temp"),
-                "origin": d.get("origin"),
-            })
-        return results
+        rows = [self._result_row(h) for h in hits if h.get("pid")]
+        note = None
+        if not rows:
+            genera = await async_common_name_genera(async_get_clientsession(self.hass), query, SEARCH_GENERA)
+            used: list[str] = []
+            seen: set[str] = set()
+            for genus in genera:
+                for h in await self.client.async_search(genus):
+                    pid = h.get("pid")
+                    if pid and pid not in seen:
+                        seen.add(pid)
+                        rows.append(self._result_row(h, via=genus))
+                        if genus not in used:
+                            used.append(genus)
+            if rows:
+                note = (
+                    f'"{query}" is a common name, so these are species of {", ".join(used)}, '
+                    "found through GBIF (OpenPlantbook itself mostly uses Latin names)."
+                )
+            elif genera:
+                note = f"The common name matches the genus {', '.join(genera)}, which OpenPlantbook does not list."
+        result = {"results": rows[:SEARCH_RESULT_LIMIT], "note": note}
+        self._search_cache[key] = (time.monotonic(), result)
+        return result
 
     def suggest(self, species: dict[str, Any] | None) -> dict[str, Any]:
         """Defaults for a new plant of this species."""

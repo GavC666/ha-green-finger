@@ -20,7 +20,13 @@ from homeassistant.loader import async_get_integration
 
 from .const import CONF_CLIENT_ID, CONF_CLIENT_SECRET, DOMAIN, FRONTEND_URL
 from .manager import GreenFingerManager
-from .openplantbook import OpenPlantbookClient, OpenPlantbookError
+from .openplantbook import (
+    OpenPlantbookAuthError,
+    OpenPlantbookClient,
+    OpenPlantbookConnectionError,
+    OpenPlantbookError,
+    OpenPlantbookRateLimit,
+)
 from .schemas import UPDATE_SCHEMA
 
 _LOGGER = logging.getLogger(__name__)
@@ -76,7 +82,13 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     async def search_species(call: ServiceCall) -> dict[str, Any]:
         try:
-            return {"results": await _manager(hass).async_search(call.data["query"])}
+            return await _manager(hass).async_search(call.data["query"])
+        except OpenPlantbookRateLimit as err:
+            raise ServiceValidationError(translation_domain=DOMAIN, translation_key="rate_limited") from err
+        except OpenPlantbookAuthError as err:
+            raise ServiceValidationError(translation_domain=DOMAIN, translation_key="invalid_auth") from err
+        except OpenPlantbookConnectionError as err:
+            raise ServiceValidationError(translation_domain=DOMAIN, translation_key="cannot_connect") from err
         except OpenPlantbookError as err:
             raise ServiceValidationError(
                 translation_domain=DOMAIN, translation_key="lookup_failed",

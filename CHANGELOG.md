@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.4
+- Search: one request per search (details are fetched only for the species you pick), so OpenPlantbook is
+  not rate limited; results are cached for ten minutes.
+- Search: common names such as "marigold" work - when OpenPlantbook has no match the matching genera are
+  found through GBIF and searched; a note says so.
+- Add form: a spinner while searching and loading; after choosing, the list collapses into a single row
+  you can open again; the button reads "Fill from OpenPlantbook data".
+- Take photo opens an in-page camera where the browser allows it (https), otherwise the device picker.
+- Readable messages for rate limit, bad credentials and connection problems.
+
 ## 0.1.3
 - Fix: clicks inside the add / edit / care pop-ups did nothing (choosing a species, Save, add period ...).
 - A soil sensor can belong to one plant only: it is greyed out for other plants and rejected by the forms and services.

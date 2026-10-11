@@ -3,7 +3,7 @@
  * gauges, quick actions, care tips and add / edit forms that call the green_finger services.
  * Usage:  type: custom:green-finger-card   (optional: title, icon) */
 (() => {
-  const VER = '0.1.3';
+  const VER = '0.1.4';
   const DOMAIN = 'green_finger';
   const GRN = '#34d058', AMB = '#ffb000', RED = '#ff3b30', MUT = '#9aa5b8';
   const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -130,6 +130,13 @@
     .res small{display:block;color:${MUT}}
     .tip{margin:0 0 10px;font-size:90%;line-height:1.4}.tip b{display:block;font-size:80%;letter-spacing:1px;color:${MUT};font-weight:500}
     .spin{padding:14px;text-align:center;color:${MUT}}
+    .loader{display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,.2);border-top-color:var(--primary-color);border-radius:50%;animation:gfspin .8s linear infinite;vertical-align:middle;margin-right:8px}
+    @keyframes gfspin{to{transform:rotate(360deg)}}
+    .picked{display:flex;gap:10px;align-items:center;padding:8px;border-radius:12px;background:var(--secondary-background-color,#2a2a2a);border:1px solid var(--primary-color);margin:0 0 6px;cursor:pointer}
+    .picked img{width:44px;height:44px;border-radius:8px;object-fit:cover}
+    .picked .grow{flex:1;min-width:0}
+    .note{font-size:80%;color:${MUT};margin:0 0 8px}
+    .cam{width:100%;border-radius:12px;background:#000;max-height:260px}
     .pic{display:flex;gap:10px;align-items:center;margin:0 0 8px}
     .pic img,.pic .ph{width:72px;height:72px;border-radius:14px;object-fit:cover;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center}
     .pic input[type=file]{display:none}
@@ -309,12 +316,16 @@
       if (act === 'addper') { const k = t.dataset.k; if (this._d[k].length < MAXP) { this._d[k].push([3, 1, 11, 30, 14]); this._renderForm(); } return; }
       if (act === 'delper') { this._d[t.dataset.k].splice(+t.dataset.i, 1); this._renderForm(); return; }
       if (act === 'pick') { this._pick(t.dataset.pid); return; }
+      if (act === 'togglelist') { this._d.listOpen = !this._d.listOpen; this._renderForm(); return; }
+      if (act === 'cam') { this._camera(); return; }
+      if (act === 'snap') { this._snap(); return; }
+      if (act === 'camstop') { this._stopCamera(); this._renderForm(); return; }
     }
     _input(e) {
       const t = e.target;
       if (t.id === 'q') {
         clearTimeout(this._qt);
-        this._qt = setTimeout(() => this._search(), 700);
+        this._qt = setTimeout(() => this._search(), 900);
       }
     }
     _change(e) {
@@ -346,7 +357,36 @@
     }
 
     /* ----------------------------------------------------------------- dialogs */
-    _closeDlg() { this._d = null; this.shadowRoot.getElementById('dlg').innerHTML = ''; }
+    _closeDlg() { this._stopCamera(); this._d = null; this.shadowRoot.getElementById('dlg').innerHTML = ''; }
+    _stopCamera() {
+      if (this._cam) { this._cam.getTracks().forEach((tr) => tr.stop()); this._cam = null; }
+      if (this._d) this._d.camera = false;
+    }
+    async _camera() {
+      const d = this._d; if (!d) return;
+      const md = typeof navigator !== 'undefined' ? navigator.mediaDevices : null;
+      const fallback = () => { const f = this.shadowRoot.getElementById('file-cam'); if (f) f.click(); };
+      // the in-page camera needs a secure context (https); otherwise let the device's picker handle it
+      if (!(typeof window !== 'undefined' && window.isSecureContext) || !md || !md.getUserMedia) { fallback(); return; }
+      try {
+        this._cam = await md.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+        d.camera = true; d.uploadError = '';
+        this._renderForm();
+      } catch (e) { this._cam = null; fallback(); }
+    }
+    _snap() {
+      const v = this.shadowRoot.getElementById('cam');
+      if (!v || !v.videoWidth) return;
+      const scale = Math.min(1, 1280 / v.videoWidth);
+      const c = document.createElement('canvas');
+      c.width = Math.round(v.videoWidth * scale); c.height = Math.round(v.videoHeight * scale);
+      c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+      c.toBlob((blob) => {
+        this._stopCamera();
+        if (blob) this._upload(new File([blob], 'plant.jpg', { type: 'image/jpeg' }));
+        else this._renderForm();
+      }, 'image/jpeg', 0.85);
+    }
     _show(html) {
       this.shadowRoot.getElementById('dlg').innerHTML = '<div class="ov" data-a="ov"><div class="dlg">' + html + '</div></div>';
     }
@@ -453,25 +493,45 @@
         (d.common_name && !d.common_names.includes(d.common_name) ? '<option value="' + esc(d.common_name) + '" selected>' + esc(d.common_name) + '</option>' : '');
       let search = '';
       if (d.mode === 'add') {
-        search = '<div class="sec">FIND THE SPECIES (OPENPLANTBOOK)</div><label class="fld"><input id="q" type="search" placeholder="Type 3+ letters, e.g. monstera" value="' + esc(d.q || '') + '"></label>' +
-          (d.searching ? '<div class="spin">Searching OpenPlantbook and loading the pictures...</div>' : '') +
+        const spin = (t) => '<div class="spin"><span class="loader"></span>' + t + '</div>';
+        const picked = (d.results || []).find((r) => r.pid === d.picked);
+        const rows = (d.results || []).map((r) =>
+          '<div class="res' + (r.pid === d.picked ? ' on' : '') + '" data-a="pick" data-pid="' + esc(r.pid) + '">' +
+          (r.image_url ? '<img src="' + esc(r.image_url) + '">' : '<img>') +
+          '<div><b>' + esc(r.display) + (r.pid === d.picked ? ' \u2713' : '') + '</b>' +
+          '<small>' + esc((r.common_names || []).slice(0, 3).join(', ') || (r.alias && r.alias !== r.pid ? r.alias : '')) + '</small>' +
+          (r.min_soil_moist != null ? '<small>Soil ' + r.min_soil_moist + '-' + r.max_soil_moist + '% &middot; ' + (r.min_temp ?? '?') + '-' + (r.max_temp ?? '?') + ' C</small>' : '') +
+          (r.via ? '<small>via ' + esc(r.via) + '</small>' : '') + '</div></div>').join('');
+        let list = '';
+        if (d.results && d.results.length) {
+          if (picked && !d.listOpen) {
+            list = '<div class="picked" data-a="togglelist">' + (d.speciesPicture ? '<img src="' + esc(d.speciesPicture) + '">' : '') +
+              '<div class="grow"><b>' + esc(picked.display) + '</b><div class="note" style="margin:0">Tap to choose another species</div></div>' +
+              '<ha-icon icon="mdi:chevron-down"></ha-icon></div>';
+          } else {
+            list = (picked ? '<div class="picked" data-a="togglelist"><div class="grow"><b>' + esc(picked.display) + '</b></div><ha-icon icon="mdi:chevron-up"></ha-icon></div>' : '') + rows;
+          }
+        } else if (d.results) {
+          list = '<div class="spin">No match found for "' + esc(d.q || '') + '".' + (d.note ? '<br>' + esc(d.note) : '') + '</div>';
+        }
+        search = '<div class="sec">FIND THE SPECIES (OPENPLANTBOOK)</div><label class="fld"><input id="q" type="search" placeholder="Latin or common name, e.g. monstera or marigold" value="' + esc(d.q || '') + '"></label>' +
+          (d.searching ? spin('Searching OpenPlantbook...') : '') +
           (d.searchError ? '<div class="spin">' + esc(d.searchError) + '</div>' : '') +
-          (d.results ? (d.results.length ? d.results.map((r) =>
-            '<div class="res' + (r.pid === d.picked ? ' on' : '') + '" data-a="pick" data-pid="' + esc(r.pid) + '">' +
-            (r.image_url ? '<img src="' + esc((r.image_url)) + '">' : '<img>') +
-            '<div><b>' + esc(r.display) + (r.pid === d.picked ? ' ✓' : '') + '</b><small>' + esc((r.common_names || []).slice(0, 3).join(', ') || r.alias || '') + '</small>' +
-            '<small>Soil ' + (r.min_soil_moist ?? '?') + '-' + (r.max_soil_moist ?? '?') + '% &middot; ' + (r.min_temp ?? '?') + '-' + (r.max_temp ?? '?') + ' C' + (r.origin ? ' &middot; ' + esc(r.origin) : '') + '</small></div></div>').join('')
-            : '<div class="spin">No match. OpenPlantbook mostly uses Latin names.</div>') : '');
+          (d.note && d.results && d.results.length ? '<div class="note">' + esc(d.note) + '</div>' : '') +
+          list + (d.picking ? spin('Loading the species data...') : '');
       }
       const shown = d.picture || d.speciesPicture;
       this._show('<h2>' + (d.mode === 'add' ? 'Add a plant' : 'Edit plant') + '<button class="x" data-a="close">&times;</button></h2>' + search +
         '<div class="sec">PLANT</div>' +
         '<div class="pic">' + (shown ? '<img src="' + esc((shown)) + '">' : '<div class="ph"><ha-icon icon="mdi:sprout"></ha-icon></div>') +
         '<div style="flex:1"><div class="g2">' +
-        '<label class="btn" style="display:block;text-align:center;cursor:pointer"><ha-icon icon="mdi:camera" style="--mdc-icon-size:18px"></ha-icon> Take photo<input id="file-cam" type="file" accept="image/*" capture="environment"></label>' +
+        '<button class="btn" data-a="cam" style="display:block;width:100%"><ha-icon icon="mdi:camera" style="--mdc-icon-size:18px"></ha-icon> Take photo</button>' +
+        '<input id="file-cam" type="file" accept="image/*" capture="environment" hidden>' +
         '<label class="btn" style="display:block;text-align:center;cursor:pointer"><ha-icon icon="mdi:image" style="--mdc-icon-size:18px"></ha-icon> Choose file<input id="file" type="file" accept="image/*"></label></div>' +
         (d.picture ? '<button class="btn" style="margin-top:6px;width:100%" data-a="nopic">Use species picture</button>' : '') +
         (d.uploadError ? '<div class="spin">' + esc(d.uploadError) + '</div>' : '') + '</div></div>' +
+        (d.camera ? '<video id="cam" class="cam" autoplay playsinline muted></video><div class="g2" style="margin-top:6px">' +
+          '<button class="btn p" data-a="snap">Capture</button><button class="btn" data-a="camstop">Cancel</button></div>' : '') +
         '<label class="fld">Name<input type="text" value="' + esc(d.name) + '" data-f="name"></label>' +
         '<div class="g2"><label class="fld">Common name shown<select data-f="common_name">' + cn + '</select></label>' +
         '<label class="fld">Moisture sensor<select data-f="moisture_entity">' + sopts + '</select></label></div>' +
@@ -495,9 +555,10 @@
         '<label class="fld">Soil notes<input type="text" value="' + esc(d.soil_notes) + '" data-f="soil_notes"></label>' +
         '<label class="fld">Notes<textarea data-f="notes">' + esc(d.notes) + '</textarea></label>' +
         '<label class="fld">OpenPlantbook species ID<input type="text" value="' + esc(d.species) + '" data-f="species"></label>' +
-        '<div class="row"><button class="btn" data-a="fill"' + (d.species ? '' : ' disabled') + '>Fill from species</button></div>' +
+        '<div class="row"><button class="btn" data-a="fill"' + (d.species && !d.filling ? '' : ' disabled') + '>' + (d.filling ? '<span class="loader"></span>' : '') + 'Fill from OpenPlantbook data</button></div>' +
         '<div class="row"><button class="btn p" data-a="save">Save</button><button class="btn" data-a="close">Cancel</button></div>');
       const q = this.shadowRoot.getElementById('q'); if (q && this._keepFocus) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
+      if (d.camera && this._cam) { const v = this.shadowRoot.getElementById('cam'); if (v) v.srcObject = this._cam; }
     }
     async _upload(file) {
       const d = this._d; if (!d || !file) return;
@@ -515,28 +576,34 @@
       const d = this._d; if (!d || d.mode !== 'add') return;
       const q = (this.shadowRoot.getElementById('q') || {}).value || '';
       d.q = q; if (q.trim().length < 3) return;
-      d.searching = true; d.results = null; d.searchError = ''; this._keepFocus = true; this._renderForm();
+      d.searching = true; d.results = null; d.note = ''; d.searchError = ''; d.picked = ''; d.listOpen = true;
+      this._keepFocus = true; this._renderForm();
       try {
         const r = await this._hass.callWS({ type: 'call_service', domain: DOMAIN, service: 'search_species', service_data: { query: q.trim() }, return_response: true });
         d.results = (r.response && r.response.results) || [];
+        d.note = (r.response && r.response.note) || '';
       } catch (e) { d.results = null; d.searchError = e && e.message ? e.message : 'Search failed.'; }
       d.searching = false; this._renderForm();
     }
     async _pick(pid) {
       const d = this._d; if (!d) return;
-      d.picked = pid; this._keepFocus = false;
+      d.picked = pid; d.listOpen = false; d.picking = true; d.searchError = ''; this._keepFocus = false;
+      this._renderForm();
       try {
         const r = await this._hass.callWS({ type: 'call_service', domain: DOMAIN, service: 'get_species', service_data: { species: pid }, return_response: true });
         this._applySpecies(r.response, true);
-      } catch (e) { /* ignore */ }
+      } catch (e) { d.searchError = e && e.message ? e.message : 'Could not load the species.'; d.listOpen = true; }
+      d.picking = false;
       this._renderForm();
     }
     async _fill() {
       const d = this._d; if (!d || !d.species) return;
+      d.filling = true; d.uploadError = ''; this._renderForm();
       try {
         const r = await this._hass.callWS({ type: 'call_service', domain: DOMAIN, service: 'get_species', service_data: { species: d.species, refresh: false }, return_response: true });
         this._applySpecies(r.response, false);
-      } catch (e) { /* ignore */ }
+      } catch (e) { d.uploadError = e && e.message ? e.message : 'Could not load the species data.'; }
+      d.filling = false;
       this._renderForm();
     }
     _applySpecies(resp, isNew) {

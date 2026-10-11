@@ -118,8 +118,8 @@ There are two equivalent ways; both create the same plants.
 
 1. *Settings > Devices & services > The Green Finger*.
 2. Press **Add plant** (next to *Plant*).
-3. **Find the species** - type the Latin name (OpenPlantbook mostly uses Latin names, for example
-   `monstera deliciosa`) and submit; leave it empty to enter everything by hand. Pick the species
+3. **Find the species** - type the Latin name (for example `monstera deliciosa`) or a common name such
+   as `marigold`, and submit; leave it empty to enter everything by hand. Pick the species
    from the list; the name, schedules, ranges and N-P-K are prefilled from it.
 4. **Plant details** - check the name and common name, choose the room (a Home Assistant area), the
    spot in the room, when you last watered and fertilised, the moisture sensor and the ideal ranges.
@@ -335,7 +335,7 @@ data:
 |---|---|
 | The card shows *Custom element doesn't exist* | Hard refresh the browser (`Ctrl+F5`); make sure the integration is set up and Home Assistant was restarted after installing |
 | Species search says *invalid authentication* | Re-copy the client ID and secret from <https://open.plantbook.io/apikey/show/>, then *Reconfigure* the integration |
-| Search finds nothing | Use the Latin name (`ficus benjamina`, not "weeping fig"); try fewer letters |
+| Search finds nothing | Common names are looked up too, but OpenPlantbook may not list the plant; try the Latin name or fewer letters |
 | *Rate limiting* error | The daily OpenPlantbook limit was reached; wait and retry. Already searched species are cached |
 | No picture upload on the card | Home Assistant's `image_upload` integration must be enabled (it is in `default_config`) |
 | A sensor cannot be chosen (greyed out) | It is already assigned to another plant; a soil sensor can belong to one plant only |
@@ -350,6 +350,8 @@ from the integration page (credentials are redacted).
 
 - OpenPlantbook receives only the search text and the species ID you look up, together with your
   client ID.
+- When a search finds no Latin-name match, the search text is also sent to [GBIF](https://www.gbif.org)
+  (a public biodiversity database, no account needed) to translate a common name into plant genera.
 - Everything else (your plants, dates, schedules, sensors) stays in your Home Assistant.
 
 ## Development

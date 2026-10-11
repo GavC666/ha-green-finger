@@ -109,7 +109,7 @@
         "invalid_auth": "OpenPlantbook rejected the credentials. Update them in the integration's menu.",
         "cannot_connect": "Could not reach OpenPlantbook.",
         "rate_limited": "OpenPlantbook is rate limiting requests. Try again in a minute.",
-        "no_results": "No species found. OpenPlantbook mostly uses Latin names.",
+        "no_results": "No species found, even by common name. Try the Latin name.",
         "sensor_in_use": "That sensor is already assigned to {plant}. Choose another sensor or remove it from that plant first.",
         "invalid_soil_mix": "Could not read the soil mix line \"{line}\". Use for example 30% perlite, and keep the total at 100% or less.",
         "invalid_schedule": "Could not read the line \"{line}\". Use for example 1 Mar - 30 Nov: every 10 days"
@@ -142,6 +142,15 @@
   "exceptions": {
     "not_loaded": {
       "message": "The Green Finger is not set up."
+    },
+    "rate_limited": {
+      "message": "OpenPlantbook is limiting requests right now. Wait a minute and try again; species you already looked up are cached."
+    },
+    "invalid_auth": {
+      "message": "OpenPlantbook rejected the client ID or secret. Update them with Reconfigure on the integration page."
+    },
+    "cannot_connect": {
+      "message": "Could not reach OpenPlantbook. Check the internet connection and try again."
     },
     "lookup_failed": {
       "message": "OpenPlantbook lookup failed: {error}"
