@@ -4,7 +4,7 @@ A Home Assistant integration that gives **every plant its own entity** - with wa
 feeding schedules, days left, live soil sensor readings, care tips, ideal fertiliser mix, soil mix,
 location and pictures - plus a dashboard card to look after them all.
 
-> Status: early development (0.1.0). Not yet in the HACS default list.
+> **Early development - personal project, no support.** This is an unfinished 0.1.0 shared as-is. Issues and discussions are switched off for now and it may change or break without notice. Not in the HACS default list.
 
 ## Features
 
