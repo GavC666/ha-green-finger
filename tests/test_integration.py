@@ -231,3 +231,19 @@ async def test_card_is_registered_as_lovelace_resource(hass: HomeAssistant) -> N
     resources = hass.data["lovelace"].resources
     urls = [item["url"] for item in resources.async_items()]
     assert any(u.startswith("/green_finger/green-finger-card.js") for u in urls)
+
+
+async def test_no_global_module_when_the_resource_is_registered(hass: HomeAssistant) -> None:
+    with patch("custom_components.green_finger.add_extra_js_url") as add_url:
+        await _setup(hass, _entry())
+    add_url.assert_not_called()
+
+
+async def test_global_module_is_the_fallback_without_manageable_resources(hass: HomeAssistant) -> None:
+    with (
+        patch("custom_components.green_finger._async_register_resource", AsyncMock(return_value=False)),
+        patch("custom_components.green_finger.add_extra_js_url") as add_url,
+    ):
+        await _setup(hass, _entry())
+    add_url.assert_called_once()
+    assert add_url.call_args.args[1].startswith("/green_finger/green-finger-card.js")

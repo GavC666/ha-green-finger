@@ -38,11 +38,14 @@ def _manager(hass: HomeAssistant) -> GreenFingerManager:
     raise ServiceValidationError(translation_domain=DOMAIN, translation_key="not_loaded")
 
 
-async def _async_register_resource(hass: HomeAssistant, url: str) -> None:
-    """Make sure the card is also a Lovelace resource (storage mode only), kept at the current version."""
+async def _async_register_resource(hass: HomeAssistant, url: str) -> bool:
+    """Register the card as a Lovelace resource (storage mode), kept at the current version.
+
+    Returns False when the resources cannot be managed (YAML mode) so the caller can fall back.
+    """
     resources = getattr(hass.data.get("lovelace"), "resources", None)
     if resources is None or not hasattr(resources, "async_create_item"):
-        return  # YAML-mode resources are managed by the user
+        return False
     try:
         if not getattr(resources, "loaded", True):
             await resources.async_load()
@@ -51,10 +54,12 @@ async def _async_register_resource(hass: HomeAssistant, url: str) -> None:
             if str(item.get("url", "")).split("?")[0] == FRONTEND_URL:
                 if item["url"] != url:
                     await resources.async_update_item(item["id"], {"res_type": "module", "url": url})
-                return
+                return True
         await resources.async_create_item({"res_type": "module", "url": url})
     except Exception:  # noqa: BLE001 - never block setup because of a dashboard resource
         _LOGGER.debug("Could not register the Lovelace resource for the card", exc_info=True)
+        return False
+    return True
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -63,8 +68,11 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     card = Path(__file__).parent / "frontend" / "green-finger-card.js"
     if card.exists():
         await hass.http.async_register_static_paths([StaticPathConfig(FRONTEND_URL, str(card), False)])
-        add_extra_js_url(hass, f"{FRONTEND_URL}?v={integration.version}")
-        await _async_register_resource(hass, f"{FRONTEND_URL}?v={integration.version}")
+        url = f"{FRONTEND_URL}?v={integration.version}"
+        # one loading route: the dashboard resource; fall back to a global module only when
+        # the resources are managed in YAML and cannot be edited from here
+        if not await _async_register_resource(hass, url):
+            add_extra_js_url(hass, url)
 
     async def search_species(call: ServiceCall) -> dict[str, Any]:
         try:

@@ -14,3 +14,16 @@ jobs:
           python-version: "3.14"
       - run: pip install -r requirements_test.txt
       - run: pytest -q
+
+  card:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Card tests (jsdom)
+        working-directory: tests/js
+        run: |
+          npm install --no-audit --no-fund
+          npm test

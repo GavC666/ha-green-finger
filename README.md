@@ -169,7 +169,10 @@ between actions. In the config flow and the services one period is one line:
 ## The dashboard card
 
 The card is bundled with the integration and registered automatically (no manual resource needed).
-After installing, **reload the browser page** (hard refresh, `Ctrl+F5`) so the new card is loaded.
+After installing **or updating**, restart Home Assistant and then **reload every open browser tab**
+(hard refresh, `Ctrl+F5`; in the app, pull to refresh or reopen it). Home Assistant only loads dashboard
+cards when a page opens, so an already open tab keeps showing *Custom element doesn't exist:
+green-finger-card* until it is reloaded.
 
 Add it to a dashboard:
 

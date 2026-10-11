@@ -3,7 +3,7 @@
  * gauges, quick actions, care tips and add / edit forms that call the green_finger services.
  * Usage:  type: custom:green-finger-card   (optional: title, icon) */
 (() => {
-  const VER = '0.1.1';
+  const VER = '0.1.2';
   const DOMAIN = 'green_finger';
   const GRN = '#34d058', AMB = '#ffb000', RED = '#ff3b30', MUT = '#9aa5b8';
   const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -137,6 +137,13 @@
   class GreenFingerCard extends HTMLElement {
     constructor() {
       super();
+      // Home Assistant can set `hass` on the element before it is upgraded (the script loaded late);
+      // that leaves an own property that hides the setter below, so re-apply it through the setter.
+      if (Object.prototype.hasOwnProperty.call(this, 'hass')) {
+        const early = this.hass;
+        delete this.hass;
+        this.hass = early;
+      }
       this.attachShadow({ mode: 'open' });
       this._f = { water: false, feed: false };
       try { this._f = JSON.parse(localStorage.getItem('green-finger-filters')) || this._f; } catch (e) { /* ignore */ }
@@ -145,14 +152,24 @@
     }
     setConfig(config) {
       this._config = Object.assign({ title: 'Plants', icon: 'mdi:sprout' }, config || {});
-      this._build();
+      try { this._build(); } catch (e) { this._fail(e); }
+    }
+    _fail(e) {
+      // never leave a bare error box: say what went wrong and what to try
+      console.error('green-finger-card:', e); // eslint-disable-line no-console
+      if (this.shadowRoot) {
+        this.shadowRoot.innerHTML = '<style>' + CSS + '</style><div class="empty">The Green Finger card could not render: ' +
+          esc(e && e.message ? e.message : e) + '. Reload the page; if this stays, update the integration.</div>';
+      }
     }
     getCardSize() { return 8; }
     static getStubConfig() { return { title: 'Plants' }; }
     set hass(h) {
       this._hass = h;
-      const sig = this._plants().map((s) => s.entity_id + s.last_updated + s.state).join('|');
-      if (sig !== this._sig) { this._sig = sig; this._renderList(); }
+      try {
+        const sig = this._plants().map((s) => s.entity_id + s.last_updated + s.state).join('|');
+        if (sig !== this._sig) { this._sig = sig; this._renderList(); }
+      } catch (e) { this._fail(e); }
     }
     _build() {
       this.shadowRoot.innerHTML = '<style>' + CSS + '</style><div class="top"><div class="title"><ha-icon icon="' + esc(this._config.icon) + '"></ha-icon>' + esc(this._config.title) +
@@ -505,5 +522,5 @@
 
   if (!customElements.get('green-finger-card')) customElements.define('green-finger-card', GreenFingerCard);
   window.customCards = window.customCards || [];
-  window.customCards.push({ type: 'green-finger-card', name: 'The Green Finger', description: 'All your plants with gauges, care tips and add/edit forms (v' + VER + ')' });
+  if (!window.customCards.some((c) => c && c.type === 'green-finger-card')) window.customCards.push({ type: 'green-finger-card', name: 'The Green Finger', description: 'All your plants with gauges, care tips and add/edit forms (v' + VER + ')' });
 })();
