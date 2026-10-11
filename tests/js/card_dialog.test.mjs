@@ -56,7 +56,7 @@ test('choosing a search result works (clicks inside the dialog reach the card)',
   await tick();
   assert.equal(calls.ws.filter((m) => m.service === 'get_species').length, 1);
   assert.equal(el._d.picked, 'ficus benjamina');
-  assert.match(root.querySelector('.res').className, /on/);
+  assert.ok(root.querySelector('.picked'), 'the chosen species should be shown as the collapsed row');
 });
 
 test('Save inside the dialog calls the add_plant service', async () => {
