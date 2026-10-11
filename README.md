@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="custom_components/green_finger/brand/logo@2x.png" width="180" alt="The Green Finger logo">
+</p>
+
 # The Green Finger
 
 A Home Assistant integration that gives **every plant its own entity** - with watering and

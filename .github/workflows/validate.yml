@@ -20,5 +20,5 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
-          # issues are switched off on purpose; topics and brand images only matter for the HACS default list
-          ignore: brands issues topics
+          # issues are switched off on purpose; topics only matter for the HACS default list
+          ignore: issues topics
