@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+- Fix pictures whose URL contains an encoded space (the card encoded them twice).
+- Download missing species data in the background at start-up; register the card as a dashboard resource.
+
 ## 0.1.0 - unreleased
 - First version: one sensor per plant, water / fertilise buttons, plants as config subentries.
 - OpenPlantbook species search with pictures, care tips, ideal ranges and suggested schedules.

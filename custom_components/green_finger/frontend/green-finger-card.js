@@ -3,7 +3,7 @@
  * gauges, quick actions, care tips and add / edit forms that call the green_finger services.
  * Usage:  type: custom:green-finger-card   (optional: title, icon) */
 (() => {
-  const VER = '0.1.0';
+  const VER = '0.1.1';
   const DOMAIN = 'green_finger';
   const GRN = '#34d058', AMB = '#ffb000', RED = '#ff3b30', MUT = '#9aa5b8';
   const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -205,7 +205,7 @@
           (a.sensor_name ? '<small>' + esc(a.sensor_name) + '</small>' : '') + '</div>';
       }
       const ps = 'width:88px;height:88px;object-fit:cover;border-radius:16px;border:2px solid ' + col + ';box-shadow:0 0 14px ' + col + '66;display:block';
-      const pic = a.picture ? '<img src="' + esc(encodeURI(a.picture)) + '" style="' + ps + '" onerror="this.style.display=\'none\'">'
+      const pic = a.picture ? '<img src="' + esc((a.picture)) + '" style="' + ps + '" onerror="this.style.display=\'none\'">'
         : '<div style="' + ps + ';background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center"><ha-icon icon="mdi:sprout" style="--mdc-icon-size:44px;color:' + MUT + '"></ha-icon></div>';
       const sci = a.species_name && String(a.species_name).toLowerCase() !== String(a.display_name).toLowerCase()
         ? '<div class="sci">' + esc(a.species_name) + '</div>' : '';
@@ -302,7 +302,7 @@
       const im = a.ideal_moisture || [], it = a.ideal_temperature || [];
       const soil = (a.soil_mix || []).length ? '<tr><td>Soil mix</td><td>' + a.soil_mix.map((x) => esc(x.percent + '% ' + x.name)).join(', ') + '</td></tr>' : '';
       this._show('<h2>' + esc(a.display_name) + '<button class="x" data-a="close">&times;</button></h2>' +
-        (a.picture ? '<div style="text-align:center"><img src="' + esc(encodeURI(a.picture)) + '" style="height:150px;border-radius:12px"></div>' : '') +
+        (a.picture ? '<div style="text-align:center"><img src="' + esc((a.picture)) + '" style="height:150px;border-radius:12px"></div>' : '') +
         '<div class="tip" style="text-align:center"><i>' + esc(a.species_name || '') + '</i>' + (a.species_alias ? ' - ' + esc(a.species_alias) : '') +
         ((a.common_names || []).length ? '<br><small>Also known as: ' + esc(a.common_names.slice(0, 8).join(', ')) + '</small>' : '') + '</div>' +
         '<table>' + (a.area ? '<tr><td>Room</td><td>' + esc(a.area) + '</td></tr>' : '') + (a.location ? '<tr><td>Spot</td><td>' + esc(a.location) + '</td></tr>' : '') +
@@ -389,7 +389,7 @@
           (d.searchError ? '<div class="spin">' + esc(d.searchError) + '</div>' : '') +
           (d.results ? (d.results.length ? d.results.map((r) =>
             '<div class="res' + (r.pid === d.picked ? ' on' : '') + '" data-a="pick" data-pid="' + esc(r.pid) + '">' +
-            (r.image_url ? '<img src="' + esc(encodeURI(r.image_url)) + '">' : '<img>') +
+            (r.image_url ? '<img src="' + esc((r.image_url)) + '">' : '<img>') +
             '<div><b>' + esc(r.display) + (r.pid === d.picked ? ' ✓' : '') + '</b><small>' + esc((r.common_names || []).slice(0, 3).join(', ') || r.alias || '') + '</small>' +
             '<small>Soil ' + (r.min_soil_moist ?? '?') + '-' + (r.max_soil_moist ?? '?') + '% &middot; ' + (r.min_temp ?? '?') + '-' + (r.max_temp ?? '?') + ' C' + (r.origin ? ' &middot; ' + esc(r.origin) : '') + '</small></div></div>').join('')
             : '<div class="spin">No match. OpenPlantbook mostly uses Latin names.</div>') : '');
@@ -397,7 +397,7 @@
       const shown = d.picture || d.speciesPicture;
       this._show('<h2>' + (d.mode === 'add' ? 'Add a plant' : 'Edit plant') + '<button class="x" data-a="close">&times;</button></h2>' + search +
         '<div class="sec">PLANT</div>' +
-        '<div class="pic">' + (shown ? '<img src="' + esc(encodeURI(shown)) + '">' : '<div class="ph"><ha-icon icon="mdi:sprout"></ha-icon></div>') +
+        '<div class="pic">' + (shown ? '<img src="' + esc((shown)) + '">' : '<div class="ph"><ha-icon icon="mdi:sprout"></ha-icon></div>') +
         '<div style="flex:1"><label class="btn" style="display:block;text-align:center;cursor:pointer">Upload own picture<input id="file" type="file" accept="image/*"></label>' +
         (d.picture ? '<button class="btn" style="margin-top:6px;width:100%" data-a="nopic">Use species picture</button>' : '') +
         (d.uploadError ? '<div class="spin">' + esc(d.uploadError) + '</div>' : '') + '</div></div>' +
