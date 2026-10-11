@@ -38,8 +38,10 @@ _MULTILINE = selector.TextSelector(selector.TextSelectorConfig(multiline=True))
 
 
 def _percent(unit: str = "%") -> selector.NumberSelector:
-    return selector.NumberSelector(selector.NumberSelectorConfig(
-        min=0, max=100, step=1, mode=selector.NumberSelectorMode.BOX, unit_of_measurement=unit or None))
+    config: dict[str, Any] = {"min": 0, "max": 100, "step": 1, "mode": selector.NumberSelectorMode.BOX}
+    if unit:
+        config["unit_of_measurement"] = unit
+    return selector.NumberSelector(selector.NumberSelectorConfig(**config))
 
 
 def _suggest(key: str, value: Any, required: bool = False) -> vol.Marker:
