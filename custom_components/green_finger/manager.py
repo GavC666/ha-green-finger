@@ -311,7 +311,10 @@ class GreenFingerManager:
         for sub in list(self.entry.subentries.values()):
             pid = str(sub.data.get("species") or "").strip().lower()
             if pid and (self.species.get(pid) or {}).get("watering") is None:
-                await self.async_get_species(pid)
+                try:
+                    await self.async_get_species(pid)
+                except Exception:  # noqa: BLE001 - a background download must never raise
+                    _LOGGER.debug("Species download for %s failed", pid, exc_info=True)
         self.async_refresh_all()
 
     async def async_refresh_species(self, subentry_id: str | None = None) -> None:

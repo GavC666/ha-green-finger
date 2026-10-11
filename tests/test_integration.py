@@ -211,13 +211,16 @@ async def test_reconfigure_credentials_reloads_entry(hass: HomeAssistant) -> Non
     await _setup(hass, entry)
     result = await entry.start_reconfigure_flow(hass)
     assert result["step_id"] == "reconfigure"
-    with patch("custom_components.green_finger.config_flow._validate_credentials", AsyncMock(return_value=None)):
+    with (
+        patch("custom_components.green_finger.config_flow._validate_credentials", AsyncMock(return_value=None)),
+        patch("custom_components.green_finger.OpenPlantbookClient", FakeClient),
+    ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], {"client_id": "abc", "client_secret": "def"},
         )
-    assert result["type"] == "abort"
-    assert result["reason"] == "reconfigure_successful"
-    await hass.async_block_till_done()
+        assert result["type"] == "abort"
+        assert result["reason"] == "reconfigure_successful"
+        await hass.async_block_till_done()
     assert entry.data == {"client_id": "abc", "client_secret": "def"}
     assert entry.state is ConfigEntryState.LOADED
     assert hass.states.get("sensor.weeping_fig") is not None
