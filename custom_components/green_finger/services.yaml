@@ -1,0 +1,189 @@
+search_species:
+  fields:
+    query:
+      required: true
+      example: monstera deliciosa
+      selector:
+        text:
+
+get_species:
+  fields:
+    species:
+      required: true
+      example: monstera deliciosa
+      selector:
+        text:
+    refresh:
+      default: false
+      selector:
+        boolean:
+
+refresh_species:
+  fields:
+    plant_id:
+      selector:
+        text:
+
+add_plant:
+  fields:
+    name:
+      required: true
+      selector:
+        text:
+    common_name:
+      selector:
+        text:
+    species:
+      selector:
+        text:
+    inside:
+      default: true
+      selector:
+        boolean:
+    location:
+      selector:
+        text:
+    area:
+      selector:
+        area:
+    picture:
+      selector:
+        text:
+    last_watered:
+      selector:
+        date:
+    last_fertilised:
+      selector:
+        date:
+    water:
+      example: "1 Mar - 30 Nov: every 10 days\n1 Dec - 29 Feb: every 28 days"
+      selector:
+        object:
+    feed:
+      example: "1 Mar - 31 Aug: every 30 days"
+      selector:
+        object:
+    moisture_entity:
+      selector:
+        entity:
+          domain: sensor
+          device_class: moisture
+    moisture_range:
+      example: "[20, 60]"
+      selector:
+        object:
+    temperature_range:
+      example: "[15, 30]"
+      selector:
+        object:
+    npk:
+      example: "[10, 10, 10]"
+      selector:
+        object:
+    fertiliser_name:
+      selector:
+        text:
+    soil_mix:
+      example: "40% peat\n30% perlite\n30% bark"
+      selector:
+        object:
+    soil_notes:
+      selector:
+        text:
+    notes:
+      selector:
+        text:
+          multiline: true
+
+update_plant:
+  target:
+    entity:
+      integration: green_finger
+      domain: sensor
+  fields:
+    name:
+      selector:
+        text:
+    common_name:
+      selector:
+        text:
+    species:
+      selector:
+        text:
+    inside:
+      selector:
+        boolean:
+    location:
+      selector:
+        text:
+    area:
+      selector:
+        area:
+    picture:
+      selector:
+        text:
+    last_watered:
+      selector:
+        date:
+    last_fertilised:
+      selector:
+        date:
+    water:
+      selector:
+        object:
+    feed:
+      selector:
+        object:
+    moisture_entity:
+      selector:
+        entity:
+          domain: sensor
+          device_class: moisture
+    moisture_range:
+      selector:
+        object:
+    temperature_range:
+      selector:
+        object:
+    npk:
+      selector:
+        object:
+    fertiliser_name:
+      selector:
+        text:
+    soil_mix:
+      selector:
+        object:
+    soil_notes:
+      selector:
+        text:
+    notes:
+      selector:
+        text:
+          multiline: true
+
+remove_plant:
+  target:
+    entity:
+      integration: green_finger
+      domain: sensor
+
+water:
+  target:
+    entity:
+      integration: green_finger
+      domain: sensor
+  fields:
+    date:
+      selector:
+        date:
+
+fertilise:
+  target:
+    entity:
+      integration: green_finger
+      domain: sensor
+  fields:
+    date:
+      selector:
+        date:

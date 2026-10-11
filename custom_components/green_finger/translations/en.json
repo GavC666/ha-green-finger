@@ -1,0 +1,265 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "The Green Finger",
+        "description": "Connect to [OpenPlantbook](https://open.plantbook.io) to look up species, care tips and pictures when you add a plant. Create a free account and an API client there, then paste the client ID and secret. You can leave both empty and enter everything by hand.",
+        "data": {
+          "client_id": "Client ID",
+          "client_secret": "Client secret"
+        }
+      },
+      "reconfigure": {
+        "title": "OpenPlantbook credentials",
+        "description": "Leave both empty to work without species lookup.",
+        "data": {
+          "client_id": "Client ID",
+          "client_secret": "Client secret"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "OpenPlantbook rejected the client ID or secret.",
+      "cannot_connect": "Could not reach OpenPlantbook.",
+      "rate_limited": "OpenPlantbook is rate limiting requests. Try again in a minute.",
+      "both_required": "Enter both the client ID and the secret, or leave both empty."
+    },
+    "abort": {
+      "single_instance_allowed": "The Green Finger is already set up.",
+      "reconfigure_successful": "Credentials updated."
+    }
+  },
+  "config_subentries": {
+    "plant": {
+      "initiate_flow": {
+        "user": "Add plant",
+        "reconfigure": "Edit plant"
+      },
+      "entry_type": "Plant",
+      "step": {
+        "user": {
+          "title": "Find the species",
+          "description": "Search OpenPlantbook by Latin name (for example *monstera deliciosa*). Leave empty to enter the plant by hand.",
+          "data": {
+            "query": "Search"
+          }
+        },
+        "pick": {
+          "title": "Pick the species",
+          "description": "Watering, feeding, ranges and care tips are filled in from the species. You can change everything afterwards.",
+          "data": {
+            "species": "Species"
+          }
+        },
+        "plant": {
+          "title": "Plant details",
+          "description": "Everything here can be changed later.",
+          "data": {
+            "name": "Name",
+            "common_name": "Common name shown on the card",
+            "species": "OpenPlantbook species ID",
+            "inside": "Grown inside",
+            "area": "Room",
+            "location": "Spot in the room",
+            "picture": "Picture URL (leave empty to use the species picture)",
+            "last_watered": "Last watered",
+            "last_fertilised": "Last fertilised",
+            "notes": "Notes"
+          },
+          "data_description": {
+            "picture": "Upload your own picture on the card, or paste a URL or a path such as /local/plant.jpg.",
+            "location": "Free text, for example \"south window sill\"."
+          },
+          "sections": {
+            "sensor": {
+              "name": "Sensor and ideal ranges",
+              "description": "Assign a soil moisture sensor to show live readings. The ranges drive the green zones of the gauges.",
+              "data": {
+                "moisture_entity": "Soil moisture sensor",
+                "moisture_min": "Ideal moisture minimum",
+                "moisture_max": "Ideal moisture maximum",
+                "temperature_min": "Ideal temperature minimum",
+                "temperature_max": "Ideal temperature maximum"
+              }
+            },
+            "nutrition": {
+              "name": "Fertiliser and soil mix",
+              "description": "The ideal N-P-K ratio and the soil mix this plant lives in.",
+              "data": {
+                "npk_n": "Nitrogen (N)",
+                "npk_p": "Phosphorus (P)",
+                "npk_k": "Potassium (K)",
+                "fertiliser_name": "Fertiliser product",
+                "soil_mix": "Soil mix (one component per line, for example 30% perlite)",
+                "soil_notes": "Soil notes"
+              }
+            }
+          }
+        },
+        "schedule": {
+          "title": "Watering and feeding schedule",
+          "description": "One period per line, for example `{example}`. Use `rest` instead of a number of days for a pause. Outside every period the plant rests.",
+          "data": {
+            "water_schedule": "Watering periods",
+            "feed_schedule": "Feeding periods"
+          }
+        }
+      },
+      "error": {
+        "invalid_auth": "OpenPlantbook rejected the credentials. Update them in the integration's menu.",
+        "cannot_connect": "Could not reach OpenPlantbook.",
+        "rate_limited": "OpenPlantbook is rate limiting requests. Try again in a minute.",
+        "no_results": "No species found. OpenPlantbook mostly uses Latin names.",
+        "invalid_soil_mix": "Could not read the soil mix line \"{line}\". Use for example 30% perlite, and keep the total at 100% or less.",
+        "invalid_schedule": "Could not read the line \"{line}\". Use for example 1 Mar - 30 Nov: every 10 days"
+      },
+      "abort": {
+        "reconfigure_successful": "Plant updated."
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "plant": {
+        "state": {
+          "ok": "OK",
+          "needs_water": "Needs water",
+          "needs_feed": "Needs feeding",
+          "needs_both": "Needs water and feeding"
+        }
+      }
+    },
+    "button": {
+      "water": {
+        "name": "Water"
+      },
+      "fertilise": {
+        "name": "Fertilise"
+      }
+    }
+  },
+  "exceptions": {
+    "not_loaded": {
+      "message": "The Green Finger is not set up."
+    },
+    "lookup_failed": {
+      "message": "OpenPlantbook lookup failed: {error}"
+    },
+    "unknown_plant": {
+      "message": "Unknown plant {plant}."
+    },
+    "name_required": {
+      "message": "A plant needs a name."
+    },
+    "no_credentials": {
+      "message": "Add your OpenPlantbook credentials in the integration's menu to search for species."
+    },
+    "invalid_schedule": {
+      "message": "Could not read the schedule line \"{line}\"."
+    },
+    "invalid_soil_mix": {
+      "message": "Could not read the soil mix line \"{line}\"."
+    }
+  },
+  "services": {
+    "search_species": {
+      "name": "Search species",
+      "description": "Search OpenPlantbook and return matching species with picture and ranges.",
+      "fields": {
+        "query": {
+          "name": "Search",
+          "description": "Latin name or part of it, at least three letters."
+        }
+      }
+    },
+    "get_species": {
+      "name": "Get species",
+      "description": "Return the cached OpenPlantbook record and the suggested schedule for a species.",
+      "fields": {
+        "species": {
+          "name": "Species ID",
+          "description": "OpenPlantbook plant ID, for example monstera deliciosa."
+        },
+        "refresh": {
+          "name": "Refresh",
+          "description": "Download again even if cached."
+        }
+      }
+    },
+    "add_plant": {
+      "name": "Add plant",
+      "description": "Create a plant. Schedules default from the species when one is given.",
+      "fields": {
+        "name": {"name": "Name", "description": "Name of the plant."},
+        "common_name": {"name": "Common name", "description": "Name shown on the card."},
+        "species": {"name": "Species ID", "description": "OpenPlantbook plant ID."},
+        "inside": {"name": "Inside", "description": "Whether the plant lives indoors."},
+        "location": {"name": "Location", "description": "Spot in the room."},
+        "area": {"name": "Area", "description": "Home Assistant area ID."},
+        "picture": {"name": "Picture", "description": "Picture URL or path."},
+        "last_watered": {"name": "Last watered", "description": "Date."},
+        "last_fertilised": {"name": "Last fertilised", "description": "Date."},
+        "water": {"name": "Watering periods", "description": "List of [start_month, start_day, end_month, end_day, days] or text lines such as 1 Mar - 30 Nov: every 10 days."},
+        "feed": {"name": "Feeding periods", "description": "Same format as watering periods."},
+        "moisture_entity": {"name": "Moisture sensor", "description": "Soil moisture sensor entity."},
+        "moisture_range": {"name": "Ideal moisture", "description": "[min, max] in percent."},
+        "temperature_range": {"name": "Ideal temperature", "description": "[min, max] in degrees Celsius."},
+        "npk": {"name": "N-P-K", "description": "[N, P, K] numbers of the ideal fertiliser."},
+        "fertiliser_name": {"name": "Fertiliser", "description": "Product name."},
+        "soil_mix": {"name": "Soil mix", "description": "Text lines such as 30% perlite, or a list of {name, percent}."},
+        "soil_notes": {"name": "Soil notes", "description": "Free text."},
+        "notes": {"name": "Notes", "description": "Free text."}
+      }
+    },
+    "update_plant": {
+      "name": "Update plant",
+      "description": "Change any detail of a plant. Only the fields you send are changed.",
+      "fields": {
+        "name": {"name": "Name", "description": "Name of the plant."},
+        "common_name": {"name": "Common name", "description": "Name shown on the card."},
+        "species": {"name": "Species ID", "description": "OpenPlantbook plant ID."},
+        "inside": {"name": "Inside", "description": "Whether the plant lives indoors."},
+        "location": {"name": "Location", "description": "Spot in the room."},
+        "area": {"name": "Area", "description": "Home Assistant area ID."},
+        "picture": {"name": "Picture", "description": "Picture URL or path."},
+        "last_watered": {"name": "Last watered", "description": "Date."},
+        "last_fertilised": {"name": "Last fertilised", "description": "Date."},
+        "water": {"name": "Watering periods", "description": "List of [start_month, start_day, end_month, end_day, days] or text lines."},
+        "feed": {"name": "Feeding periods", "description": "Same format as watering periods."},
+        "moisture_entity": {"name": "Moisture sensor", "description": "Soil moisture sensor entity."},
+        "moisture_range": {"name": "Ideal moisture", "description": "[min, max] in percent."},
+        "temperature_range": {"name": "Ideal temperature", "description": "[min, max] in degrees Celsius."},
+        "npk": {"name": "N-P-K", "description": "[N, P, K] numbers of the ideal fertiliser."},
+        "fertiliser_name": {"name": "Fertiliser", "description": "Product name."},
+        "soil_mix": {"name": "Soil mix", "description": "Text lines such as 30% perlite, or a list of {name, percent}."},
+        "soil_notes": {"name": "Soil notes", "description": "Free text."},
+        "notes": {"name": "Notes", "description": "Free text."}
+      }
+    },
+    "remove_plant": {
+      "name": "Remove plant",
+      "description": "Delete a plant and its entities."
+    },
+    "water": {
+      "name": "Water",
+      "description": "Record that a plant was watered.",
+      "fields": {
+        "date": {"name": "Date", "description": "Defaults to today."}
+      }
+    },
+    "fertilise": {
+      "name": "Fertilise",
+      "description": "Record that a plant was fertilised.",
+      "fields": {
+        "date": {"name": "Date", "description": "Defaults to today."}
+      }
+    },
+    "refresh_species": {
+      "name": "Refresh species data",
+      "description": "Download the species record again from OpenPlantbook.",
+      "fields": {
+        "plant_id": {"name": "Plant ID", "description": "Subentry ID of one plant; leave empty for all."}
+      }
+    }
+  }
+}

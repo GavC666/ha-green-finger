@@ -1,0 +1,29 @@
+{
+  "entity": {
+    "sensor": {
+      "plant": {
+        "default": "mdi:sprout",
+        "state": {
+          "ok": "mdi:sprout",
+          "needs_water": "mdi:watering-can",
+          "needs_feed": "mdi:sack",
+          "needs_both": "mdi:alert-circle"
+        }
+      }
+    },
+    "button": {
+      "water": {"default": "mdi:watering-can"},
+      "fertilise": {"default": "mdi:sack"}
+    }
+  },
+  "services": {
+    "search_species": {"service": "mdi:magnify"},
+    "get_species": {"service": "mdi:book-open-variant"},
+    "refresh_species": {"service": "mdi:refresh"},
+    "add_plant": {"service": "mdi:plus"},
+    "update_plant": {"service": "mdi:pencil"},
+    "remove_plant": {"service": "mdi:delete"},
+    "water": {"service": "mdi:watering-can"},
+    "fertilise": {"service": "mdi:sack"}
+  }
+}
