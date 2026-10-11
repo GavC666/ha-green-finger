@@ -245,7 +245,7 @@ class PlantSubentryFlow(ConfigSubentryFlow):
 
     async def async_step_plant(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         errors: dict[str, str] = {}
-        placeholders = {"line": ""}
+        placeholders = {"line": "", "plant": ""}
         if user_input is not None:
             flat = {k: val for k, val in user_input.items() if k not in ("sensor", "nutrition")}
             flat.update(user_input.get("sensor") or {})
@@ -266,6 +266,13 @@ class PlantSubentryFlow(ConfigSubentryFlow):
             except ValueError as err:
                 errors["base"] = "invalid_soil_mix"
                 placeholders["line"] = str(err)
+            if not errors:
+                own = self._get_reconfigure_subentry().subentry_id if self._reconfigure else None
+                try:
+                    self.manager.check_sensor_free(self._values.get("moisture_entity"), own)
+                except ServiceValidationError as err:
+                    errors["base"] = "sensor_in_use"
+                    placeholders["plant"] = str((err.translation_placeholders or {}).get("plant", ""))
             species = (self._values.get("species") or "").strip().lower()
             if not errors and species and species != (self._species or {}).get("pid"):
                 self._species = await self.manager.async_get_species(species)

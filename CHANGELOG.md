@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.3
+- Fix: clicks inside the add / edit / care pop-ups did nothing (choosing a species, Save, add period ...).
+- A soil sensor can belong to one plant only: it is greyed out for other plants and rejected by the forms and services.
+- Own picture: take a photo with the device camera or choose an existing file.
+- Layout: the plants list wraps into columns (`columns`, `min_width`, `sort` options) and every plant can also
+  be placed on its own with `custom:green-finger-plant-card`, so it can be moved around the dashboard.
+
 ## 0.1.2
 - Card: handle Home Assistant setting `hass` before the element is upgraded (page loaded before the card).
 - Card: show a readable message instead of a bare error box if it cannot render; register the card only once.

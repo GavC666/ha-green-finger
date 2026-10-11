@@ -3,7 +3,7 @@
  * gauges, quick actions, care tips and add / edit forms that call the green_finger services.
  * Usage:  type: custom:green-finger-card   (optional: title, icon) */
 (() => {
-  const VER = '0.1.2';
+  const VER = '0.1.3';
   const DOMAIN = 'green_finger';
   const GRN = '#34d058', AMB = '#ffb000', RED = '#ff3b30', MUT = '#9aa5b8';
   const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -82,6 +82,8 @@
     button{font:inherit;cursor:pointer}
     .add{background:var(--primary-color);color:var(--text-primary-color,#fff);border:0;border-radius:23px;height:46px;padding:0 18px 0 12px;font-weight:600;display:flex;align-items:center;gap:6px}
     .chips{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 10px}
+    #list{display:grid;gap:10px;grid-template-columns:var(--gf-cols,1fr)}
+    #list>.plant{margin:0;min-width:0}
     .chip{display:flex;align-items:center;gap:8px;background:var(--card-background-color,#1c1c1c);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:8px 10px;color:var(--primary-text-color);text-align:left}
     .chip.on{border-color:var(--primary-color);box-shadow:0 0 0 1px var(--primary-color) inset}
     .plant{position:relative;border-radius:16px;padding:10px 12px 2px;margin:0 0 10px;box-shadow:0 2px 8px rgba(0,0,0,.35);color:var(--primary-text-color)}
@@ -151,7 +153,7 @@
       this._sig = '';
     }
     setConfig(config) {
-      this._config = Object.assign({ title: 'Plants', icon: 'mdi:sprout' }, config || {});
+      this._config = Object.assign({ title: 'Plants', icon: 'mdi:sprout', min_width: 380, sort: 'name' }, config || {});
       try { this._build(); } catch (e) { this._fail(e); }
     }
     _fail(e) {
@@ -162,8 +164,22 @@
           esc(e && e.message ? e.message : e) + '. Reload the page; if this stays, update the integration.</div>';
       }
     }
-    getCardSize() { return 8; }
+    getCardSize() { return this._config && this._config.entity ? 5 : 8; }
+    getGridOptions() {
+      return this._config && this._config.entity ? { columns: 6, min_columns: 4 } : { columns: 12, min_columns: 6 };
+    }
     static getStubConfig() { return { title: 'Plants' }; }
+    static getConfigForm() {
+      return {
+        schema: [
+          { name: 'title', selector: { text: {} } },
+          { name: 'icon', selector: { icon: {} } },
+          { name: 'columns', selector: { number: { min: 1, max: 6, mode: 'box' } } },
+          { name: 'min_width', selector: { number: { min: 240, max: 800, step: 10, unit_of_measurement: 'px', mode: 'box' } } },
+          { name: 'sort', selector: { select: { options: [{ value: 'name', label: 'Name' }, { value: 'urgency', label: 'Most urgent first' }] } } },
+        ],
+      };
+    }
     set hass(h) {
       this._hass = h;
       try {
@@ -172,13 +188,20 @@
       } catch (e) { this._fail(e); }
     }
     _build() {
-      this.shadowRoot.innerHTML = '<style>' + CSS + '</style><div class="top"><div class="title"><ha-icon icon="' + esc(this._config.icon) + '"></ha-icon>' + esc(this._config.title) +
+      const single = !!this._config.entity;
+      this.shadowRoot.innerHTML = '<style>' + CSS + '</style>' + (single ? '' :
+        '<div class="top"><div class="title"><ha-icon icon="' + esc(this._config.icon) + '"></ha-icon>' + esc(this._config.title) +
         '</div><button class="add" data-a="add"><ha-icon icon="mdi:plus"></ha-icon>Add plant</button></div>' +
         '<div class="chips"><button class="chip" data-a="fw"><ha-icon icon="mdi:watering-can"></ha-icon>Only plants needing water</button>' +
-        '<button class="chip" data-a="ff"><ha-icon icon="mdi:sack"></ha-icon>Only plants needing fertiliser</button></div><div id="list"></div><div id="dlg"></div>';
-      this.shadowRoot.addEventListener('click', (e) => this._click(e));
-      this.shadowRoot.addEventListener('change', (e) => this._change(e));
-      this.shadowRoot.addEventListener('input', (e) => this._input(e));
+        '<button class="chip" data-a="ff"><ha-icon icon="mdi:sack"></ha-icon>Only plants needing fertiliser</button></div>') +
+        '<div id="list"></div><div id="dlg"></div>';
+      // the listeners sit on the shadow root itself, so they are added only once
+      if (!this._wired) {
+        this._wired = true;
+        this.shadowRoot.addEventListener('click', (e) => this._click(e));
+        this.shadowRoot.addEventListener('change', (e) => this._change(e));
+        this.shadowRoot.addEventListener('input', (e) => this._input(e));
+      }
       this._renderList();
     }
     _plants() {
@@ -189,12 +212,28 @@
     }
     _renderList() {
       const root = this.shadowRoot; if (!root || !root.getElementById('list')) return;
-      root.querySelector('[data-a=fw]').classList.toggle('on', !!this._f.water);
-      root.querySelector('[data-a=ff]').classList.toggle('on', !!this._f.feed);
+      const fw = root.querySelector('[data-a=fw]'), ff = root.querySelector('[data-a=ff]');
+      if (fw) fw.classList.toggle('on', !!this._f.water);
+      if (ff) ff.classList.toggle('on', !!this._f.feed);
+      const cfg = this._config || {};
       let ps = this._plants();
-      if (this._f.water) ps = ps.filter((s) => ['needs_water', 'needs_both'].includes(s.state));
-      if (this._f.feed) ps = ps.filter((s) => ['needs_feed', 'needs_both'].includes(s.state));
-      root.getElementById('list').innerHTML = ps.length ? ps.map((s) => this._plantHtml(s)).join('') : '<div class="empty">No plants to show.</div>';
+      if (cfg.entity) {
+        ps = ps.filter((s) => s.entity_id === cfg.entity);
+      } else {
+        if (this._f.water) ps = ps.filter((s) => ['needs_water', 'needs_both'].includes(s.state));
+        if (this._f.feed) ps = ps.filter((s) => ['needs_feed', 'needs_both'].includes(s.state));
+        if (cfg.sort === 'urgency') {
+          const rank = { needs_both: 0, needs_water: 1, needs_feed: 2, ok: 3 };
+          ps = ps.slice().sort((a, b) => (rank[a.state] ?? 4) - (rank[b.state] ?? 4));
+        }
+      }
+      const list = root.getElementById('list');
+      const n = Number(cfg.columns);
+      const minw = Math.max(200, Number(cfg.min_width) || 380);
+      list.style.setProperty('--gf-cols', n >= 1 ? 'repeat(' + Math.round(n) + ',minmax(0,1fr))'
+        : 'repeat(auto-fill,minmax(min(100%,' + minw + 'px),1fr))');
+      list.innerHTML = ps.length ? ps.map((s) => this._plantHtml(s)).join('')
+        : '<div class="empty">' + (cfg.entity ? 'Plant ' + esc(cfg.entity) + ' not found.' : 'No plants to show.') + '</div>';
     }
 
     /* --------------------------------------------------------------- plant card */
@@ -245,6 +284,7 @@
       const t = e.target.closest('[data-a]'); if (!t) return;
       const act = t.dataset.a, eid = t.dataset.e;
       const h = this._hass;
+      if (act === 'ov') { if (e.target === t) this._closeDlg(); return; } // the backdrop only, never clicks inside the dialog
       if (act === 'fw' || act === 'ff') {
         const k = act === 'fw' ? 'water' : 'feed';
         this._f[k] = !this._f[k];
@@ -279,7 +319,7 @@
     }
     _change(e) {
       const t = e.target; if (!this._d) return;
-      if (t.id === 'file') { this._upload(t.files && t.files[0]); return; }
+      if (t.id === 'file' || t.id === 'file-cam') { this._upload(t.files && t.files[0]); return; }
       if (!t.dataset.f) return;
       const f = t.dataset.f, d = this._d;
       const plain = ['name', 'common_name', 'species', 'location', 'area', 'last_watered', 'last_fertilised', 'moisture_entity',
@@ -308,7 +348,7 @@
     /* ----------------------------------------------------------------- dialogs */
     _closeDlg() { this._d = null; this.shadowRoot.getElementById('dlg').innerHTML = ''; }
     _show(html) {
-      this.shadowRoot.getElementById('dlg').innerHTML = '<div class="ov" data-a="close"><div class="dlg" onclick="event.stopPropagation()">' + html + '</div></div>';
+      this.shadowRoot.getElementById('dlg').innerHTML = '<div class="ov" data-a="ov"><div class="dlg">' + html + '</div></div>';
     }
     _openInfo(eid) {
       const s = this._hass.states[eid]; if (!s) return;
@@ -339,6 +379,14 @@
       const all = Object.values(h.states).filter((s) => s.entity_id.startsWith('sensor.') && s.attributes.device_class === 'moisture');
       const pref = all.filter((s) => /soil_moisture$/.test(s.entity_id));
       return (pref.length ? pref : all).sort((a, b) => a.entity_id.localeCompare(b.entity_id));
+    }
+    _sensorOwners(exceptEid) {
+      const out = {};
+      this._plants().forEach((s) => {
+        const me = s.attributes.moisture_entity;
+        if (me && s.entity_id !== exceptEid) out[me] = s.attributes.display_name || s.entity_id;
+      });
+      return out;
     }
     _areas() {
       const a = (this._hass && this._hass.areas) || {};
@@ -393,8 +441,12 @@
           (d[k].length < MAXP ? '<button class="btn" data-a="addper" data-k="' + k + '">+ Add period</button>' : '');
       };
       const sens = this._sensors();
-      const sopts = '<option value="">No sensor</option>' + sens.map((s) => '<option value="' + esc(s.entity_id) + '"' + (s.entity_id === d.moisture_entity ? ' selected' : '') + '>' +
-        esc(s.attributes.friendly_name || s.entity_id) + '</option>').join('') +
+      const owners = this._sensorOwners(d.eid);
+      const sopts = '<option value="">No sensor</option>' + sens.map((s) => {
+        const used = owners[s.entity_id] && s.entity_id !== d.moisture_entity;
+        return '<option value="' + esc(s.entity_id) + '"' + (s.entity_id === d.moisture_entity ? ' selected' : '') + (used ? ' disabled' : '') + '>' +
+          esc(s.attributes.friendly_name || s.entity_id) + (used ? ' (used by ' + esc(owners[s.entity_id]) + ')' : '') + '</option>';
+      }).join('') +
         (d.moisture_entity && !sens.some((s) => s.entity_id === d.moisture_entity) ? '<option value="' + esc(d.moisture_entity) + '" selected>' + esc(d.moisture_entity) + '</option>' : '');
       const aopts = '<option value="">No room</option>' + this._areas().map((x) => '<option value="' + esc(x.area_id) + '"' + (x.area_id === d.area ? ' selected' : '') + '>' + esc(x.name) + '</option>').join('');
       const cn = '<option value="">Plant name</option>' + d.common_names.map((n) => '<option value="' + esc(n) + '"' + (n === d.common_name ? ' selected' : '') + '>' + esc(n) + '</option>').join('') +
@@ -415,7 +467,9 @@
       this._show('<h2>' + (d.mode === 'add' ? 'Add a plant' : 'Edit plant') + '<button class="x" data-a="close">&times;</button></h2>' + search +
         '<div class="sec">PLANT</div>' +
         '<div class="pic">' + (shown ? '<img src="' + esc((shown)) + '">' : '<div class="ph"><ha-icon icon="mdi:sprout"></ha-icon></div>') +
-        '<div style="flex:1"><label class="btn" style="display:block;text-align:center;cursor:pointer">Upload own picture<input id="file" type="file" accept="image/*"></label>' +
+        '<div style="flex:1"><div class="g2">' +
+        '<label class="btn" style="display:block;text-align:center;cursor:pointer"><ha-icon icon="mdi:camera" style="--mdc-icon-size:18px"></ha-icon> Take photo<input id="file-cam" type="file" accept="image/*" capture="environment"></label>' +
+        '<label class="btn" style="display:block;text-align:center;cursor:pointer"><ha-icon icon="mdi:image" style="--mdc-icon-size:18px"></ha-icon> Choose file<input id="file" type="file" accept="image/*"></label></div>' +
         (d.picture ? '<button class="btn" style="margin-top:6px;width:100%" data-a="nopic">Use species picture</button>' : '') +
         (d.uploadError ? '<div class="spin">' + esc(d.uploadError) + '</div>' : '') + '</div></div>' +
         '<label class="fld">Name<input type="text" value="' + esc(d.name) + '" data-f="name"></label>' +
@@ -520,7 +574,19 @@
     }
   }
 
+  class GreenFingerPlantCard extends GreenFingerCard {
+    static getStubConfig(hass) {
+      const first = Object.values((hass && hass.states) || {}).find((s) => s.attributes && s.attributes.green_finger);
+      return { entity: first ? first.entity_id : '' };
+    }
+    static getConfigForm() {
+      return { schema: [{ name: 'entity', required: true, selector: { entity: { filter: { integration: DOMAIN, domain: 'sensor' } } } }] };
+    }
+  }
+
   if (!customElements.get('green-finger-card')) customElements.define('green-finger-card', GreenFingerCard);
+  if (!customElements.get('green-finger-plant-card')) customElements.define('green-finger-plant-card', GreenFingerPlantCard);
   window.customCards = window.customCards || [];
   if (!window.customCards.some((c) => c && c.type === 'green-finger-card')) window.customCards.push({ type: 'green-finger-card', name: 'The Green Finger', description: 'All your plants with gauges, care tips and add/edit forms (v' + VER + ')' });
+  if (!window.customCards.some((c) => c && c.type === 'green-finger-plant-card')) window.customCards.push({ type: 'green-finger-plant-card', name: 'The Green Finger - one plant', description: 'A single plant card you can place anywhere on a dashboard (v' + VER + ')' });
 })();

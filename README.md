@@ -169,10 +169,8 @@ between actions. In the config flow and the services one period is one line:
 ## The dashboard card
 
 The card is bundled with the integration and registered automatically (no manual resource needed).
-After installing **or updating**, restart Home Assistant and then **reload every open browser tab**
-(hard refresh, `Ctrl+F5`; in the app, pull to refresh or reopen it). Home Assistant only loads dashboard
-cards when a page opens, so an already open tab keeps showing *Custom element doesn't exist:
-green-finger-card* until it is reloaded.
+After installing or updating, restart Home Assistant. If a dashboard tab that was already open shows
+*Custom element doesn't exist: green-finger-card*, refresh that tab (`Ctrl+F5`).
 
 Add it to a dashboard:
 
@@ -187,6 +185,29 @@ Add it to a dashboard:
 
 2. Save. Every plant of the integration appears automatically.
 
+### Layout options
+
+```yaml
+type: custom:green-finger-card
+title: Plants
+columns: 2          # fixed number of columns; leave out for automatic
+min_width: 380      # automatic columns: minimum width of one plant in px
+sort: urgency       # name (default) or urgency = needs water / feeding first
+```
+
+### One card per plant
+
+To move plants around freely (reorder, side by side, different sections or views), add one card per
+plant. In a *sections* view each one can be dragged and resized like any other card:
+
+```yaml
+type: custom:green-finger-plant-card
+entity: sensor.weeping_fig
+```
+
+Both cards offer the same buttons and pop-ups; the list card additionally has the *Add plant* button
+and the filters.
+
 What the card gives you:
 
 - a card per plant with vertical LED gauges for watering, fertilising, soil moisture and temperature;
@@ -194,8 +215,8 @@ What the card gives you:
 - quick buttons: *watered*, *fertilised*, *care & tips*, *edit* (cog) and *delete*;
 - the care pop-up with ideal ranges, N-P-K, soil mix, schedules, OpenPlantbook care tips and your notes;
 - filters **Only plants needing water** and **Only plants needing fertiliser**;
-- **Add plant** and edit forms with species search, period editors, sensor, room, own picture upload,
-  N-P-K, soil mix and notes.
+- **Add plant** and edit forms with species search, period editors, sensor, room, own picture upload
+  (take a photo or choose a file), N-P-K, soil mix and notes.
 
 ## Entities and attributes
 
@@ -317,6 +338,7 @@ data:
 | Search finds nothing | Use the Latin name (`ficus benjamina`, not "weeping fig"); try fewer letters |
 | *Rate limiting* error | The daily OpenPlantbook limit was reached; wait and retry. Already searched species are cached |
 | No picture upload on the card | Home Assistant's `image_upload` integration must be enabled (it is in `default_config`) |
+| A sensor cannot be chosen (greyed out) | It is already assigned to another plant; a soil sensor can belong to one plant only |
 | Temperature / battery missing | The moisture sensor's device must also have temperature / battery sensors that are enabled |
 | Plant reads *needs water* with a green timer | The assigned soil sensor reads dry or low - check the ideal moisture range |
 | Entity ID differs from the examples | IDs follow the plant name; check *Settings > Devices & services > Entities* |

@@ -170,6 +170,15 @@ class GreenFingerManager:
             raise _invalid("unknown_plant", plant=subentry_id)
         return sub
 
+    def check_sensor_free(self, entity_id: str | None, own_subentry_id: str | None = None) -> None:
+        """Raise if the soil sensor is already assigned to another plant."""
+        if not entity_id:
+            return
+        for sid, sub in self.entry.subentries.items():
+            if sid != own_subentry_id and sub.subentry_type == SUBENTRY_PLANT \
+                    and sub.data.get("moisture_entity") == entity_id:
+                raise _invalid("sensor_in_use", sensor=entity_id, plant=sub.title)
+
     # --------------------------------------------------------------- species
     async def async_get_species(self, pid: str, refresh: bool = False) -> dict[str, Any] | None:
         pid = (pid or "").strip().lower()
@@ -265,6 +274,7 @@ class GreenFingerManager:
             plant["water"] = sug["water"] or plant["water"]
             plant["feed"] = sug["feed"] or plant["feed"]
         plant.update(clean_plant_data({k: v for k, v in data.items() if k != "species"}))
+        self.check_sensor_free(plant.get("moisture_entity"))
         plant = {k: v for k, v in plant.items() if v is not None or k in ("species",)}
         title = plant.get("common_name") or plant["name"]
         sub = ConfigSubentry(data=MappingProxyType(plant), subentry_type=SUBENTRY_PLANT, title=title, unique_id=None)
@@ -279,6 +289,8 @@ class GreenFingerManager:
         if new.get("species") and str(new["species"]).strip().lower() != (merged.get("species") or ""):
             await self.async_get_species(str(new["species"]))
         merged.update(clean_plant_data(new))
+        if "moisture_entity" in new:
+            self.check_sensor_free(merged.get("moisture_entity"), subentry_id)
         merged = {k: v for k, v in merged.items() if v is not None or k == "species"}
         title = merged.get("common_name") or merged.get("name") or sub.title
         self.hass.config_entries.async_update_subentry(self.entry, sub, data=merged, title=title)

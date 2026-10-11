@@ -110,6 +110,7 @@
         "cannot_connect": "Could not reach OpenPlantbook.",
         "rate_limited": "OpenPlantbook is rate limiting requests. Try again in a minute.",
         "no_results": "No species found. OpenPlantbook mostly uses Latin names.",
+        "sensor_in_use": "That sensor is already assigned to {plant}. Choose another sensor or remove it from that plant first.",
         "invalid_soil_mix": "Could not read the soil mix line \"{line}\". Use for example 30% perlite, and keep the total at 100% or less.",
         "invalid_schedule": "Could not read the line \"{line}\". Use for example 1 Mar - 30 Nov: every 10 days"
       },
@@ -150,6 +151,9 @@
     },
     "name_required": {
       "message": "A plant needs a name."
+    },
+    "sensor_in_use": {
+      "message": "The sensor {sensor} is already assigned to {plant}."
     },
     "no_credentials": {
       "message": "Add your OpenPlantbook credentials in the integration's menu to search for species."
