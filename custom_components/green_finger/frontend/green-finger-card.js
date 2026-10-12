@@ -17,7 +17,7 @@
   const LAST = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
   const MAXP = 6;
   const H = 104;
-  const DEG = '°C', DASH = '–', DOT = '·';
+  const DEG = '\u00b0C', DASH = '\u2013', DOT = '\u00b7';
   const SIZE_KEY = 'green-finger-size';
   const FILTER_KEY = 'green-finger-filters';
   const SPECIES = new Map(); // species id -> saved OpenPlantbook record; shared by every card on the page
@@ -253,8 +253,8 @@
     ['Air humidity', 'min_env_humid', 'max_env_humid', ' %'],
     ['Light', 'min_light_lux', 'max_light_lux', ' lux'],
     ['Light', 'min_light_mmol', 'max_light_mmol', ' mmol'],
-    ['Soil conductivity', 'min_soil_ec', 'max_soil_ec', ' µS/cm'],
-    ['Daily light', 'min_dli', 'max_dli', ' mol/m²'],
+    ['Soil conductivity', 'min_soil_ec', 'max_soil_ec', ' \u00b5S/cm'],
+    ['Daily light', 'min_dli', 'max_dli', ' mol/m\u00b2'],
   ];
 
   class GreenFingerCard extends HTMLElement {
@@ -414,7 +414,7 @@
 
     /* ----------------------------------------------------------------- list */
     _renderList() {
-      const root = this.shadowRoot, list = root && root.getElementById('list'); if (!list) return;
+      const root = this.shadowRoot, list = root && root.getElementById('list'); if (!list || !this._ids || !this._hass) return;
       const cfg = this._config, h = this._hass, compact = this._size === 'compact';
       const fw = root.querySelector('[data-a=fw]'), ff = root.querySelector('[data-a=ff]'), sz = root.querySelector('[data-a=size]');
       if (fw) fw.classList.toggle('on', !!this._f.water);
@@ -519,7 +519,7 @@
       sts.push(st('mdi:sack', dayTxt(a.feed_interval, a.feed_days_left),
         a.feed_interval > 0 && a.feed_days_left != null ? leftCol(a.feed_days_left) : MUT, 'Feeding'));
       if (isNum(a.moisture)) sts.push(st('mdi:water-percent', Math.round(a.moisture) + '%', zoneCol(a.moisture_status), 'Soil moisture'));
-      if (isNum(a.temperature)) sts.push(st('mdi:thermometer', r1(a.temperature) + '°', zoneCol(a.temperature_status), 'Temperature'));
+      if (isNum(a.temperature)) sts.push(st('mdi:thermometer', r1(a.temperature) + '\u00b0', zoneCol(a.temperature_status), 'Temperature'));
       const b = this._battery(a);
       if (b) sts.push(st(b.icon, b.bl + '%', b.col, 'Battery'));
       const thumb = a.picture
@@ -669,11 +669,12 @@
       const dlg = this.shadowRoot.getElementById('dlg');
       const old = dlg.querySelector('.db');
       const top = o.keep && old ? old.scrollTop : 0;
-      dlg.innerHTML = '<div class="ov" data-a="ov"><div class="dlg" role="dialog" aria-modal="true">' +
+      dlg.innerHTML = '<div class="ov" data-a="ov"><div class="dlg" role="dialog" aria-modal="true" tabindex="-1">' +
         '<div class="dh">' + (o.pic || '') + '<h2>' + o.title + (o.sub ? '<small>' + o.sub + '</small>' : '') +
         '</h2><button class="x" data-a="close" aria-label="Close">&times;</button></div>' +
         (o.tabs || '') + '<div class="db">' + o.body + '</div>' + (o.foot ? '<div class="df">' + o.foot + '</div>' : '') + '</div></div>';
       const nb = dlg.querySelector('.db'); if (nb && top) nb.scrollTop = top;
+      if (!o.keep) { const box = dlg.querySelector('.dlg'); if (box && box.focus) box.focus({ preventScroll: true }); }
       if (!this._keyOn) { this._keyOn = true; document.addEventListener('keydown', this._onKey); }
     }
 
@@ -874,7 +875,7 @@
       const rows = (d.results || []).map((r) =>
         '<div class="res' + (r.pid === d.picked ? ' on' : '') + '" data-a="pick" data-pid="' + esc(r.pid) + '">' +
         (r.image_url ? '<img src="' + esc(r.image_url) + '">' : '<img>') +
-        '<div><b>' + esc(r.display) + (r.pid === d.picked ? ' ✓' : '') + '</b>' +
+        '<div><b>' + esc(r.display) + (r.pid === d.picked ? ' \u2713' : '') + '</b>' +
         '<small>' + esc((r.common_names || []).slice(0, 3).join(', ') || (r.alias && r.alias !== r.pid ? r.alias : '')) + '</small>' +
         (r.min_soil_moist != null ? '<small>Soil ' + r.min_soil_moist + DASH + r.max_soil_moist + '% ' + DOT + ' ' + (r.min_temp ?? '?') + DASH + (r.max_temp ?? '?') + ' ' + DEG + '</small>' : '') +
         (r.via ? '<small>via ' + esc(r.via) + '</small>' : '') + '</div></div>').join('');
@@ -890,7 +891,7 @@
       } else if (d.results) {
         list = '<div class="spin">No match found for "' + esc(d.q || '') + '".' + (d.note ? '<br>' + esc(d.note) : '') + '</div>';
       }
-      return '<label class="fld">Search OpenPlantbook by name<input id="q" type="search" placeholder="Latin or common name, e.g. monstera or marigold" value="' + esc(d.q || '') + '"></label>' +
+      return '<label class="fld">Search OpenPlantbook by name<input id="q" type="search" autocomplete="off" placeholder="Latin or common name, e.g. monstera or marigold" value="' + esc(d.q || '') + '"></label>' +
         (d.searching ? spin('Searching OpenPlantbook...') : '') +
         (d.searchError ? '<div class="err">' + esc(d.searchError) + '</div>' : '') +
         (d.note && d.results && d.results.length ? '<div class="note">' + esc(d.note) + '</div>' : '') +
@@ -916,8 +917,8 @@
         return '<div class="sec">' + label + ' <span style="text-transform:none;letter-spacing:0">(0 days = rest; dates outside every period = rest)</span></div>' + rows +
           (d[k].length < MAXP ? '<button class="btn s" data-a="addper" data-k="' + k + '">+ Add period</button>' : '');
       };
-      const sens = this._sensors();
-      const owners = this._sensorOwners(d.eid);
+      if (!d.sensors) { d.sensors = this._sensors(); d.owners = this._sensorOwners(d.eid); }
+      const sens = d.sensors, owners = d.owners;
       const sopts = '<option value="">No sensor</option>' + sens.map((s) => {
         const used = owners[s.entity_id] && s.entity_id !== d.moisture_entity;
         return '<option value="' + esc(s.entity_id) + '"' + (s.entity_id === d.moisture_entity ? ' selected' : '') + (used ? ' disabled' : '') + '>' +
@@ -947,7 +948,7 @@
         (d.uploadError ? '<div class="err">' + esc(d.uploadError) + '</div>' : '') +
         (d.camera ? '<video id="cam" class="cam" autoplay playsinline muted></video><div class="row">' +
           '<button class="btn p" data-a="snap">Capture</button><button class="btn" data-a="camstop">Cancel</button></div>' : '') +
-        '<label class="fld">Name<input type="text" value="' + esc(d.name) + '" data-f="name" placeholder="e.g. Kitchen basil"></label>' + cn +
+        '<label class="fld">Name<input type="text" autocomplete="off" value="' + esc(d.name) + '" data-f="name" placeholder="e.g. Kitchen basil"></label>' + cn +
         '<div class="g2"><label class="fld">Room<select data-f="area">' + aopts + '</select></label>' +
         '<label class="fld">Spot in the room<input type="text" value="' + esc(d.location) + '" data-f="location" placeholder="south window sill"></label></div>' +
         '<div class="seg"><button data-a="inside" data-v="1" class="' + (d.inside ? 'on' : '') + '">Inside</button><button data-a="inside" data-v="0" class="' + (!d.inside ? 'on' : '') + '">Outside</button></div>' +

@@ -1,5 +1,56 @@
 # Changelog
 
+## 0.2.0
+
+### New
+- **Two card sizes.** *Large* (as before) and *Compact*: one slim row per plant with no gauges - days until
+  watering and feeding, moisture, temperature and battery as small coloured chips. Choose it in the card
+  settings (`size: compact`) or with the switch next to the filters (remembered on each device). Both the
+  list card and the one-plant card have it.
+- **Information window with two tabs.** *My plant* shows everything the card knows - care plan and next
+  dates, live sensor values, place, fertiliser and soil, your notes and the schedules. *OpenPlantbook* shows
+  the saved species record: ideal conditions and care tips, the day it was saved and a **Refresh** button.
+- **OpenPlantbook data is saved once** in Home Assistant's storage and read from there; OpenPlantbook is
+  asked again only when nothing is saved yet or when you press Refresh. A failed refresh (rate limit,
+  rejected key, no connection) is now reported instead of being ignored. New attribute `species_saved_on`.
+- **Postpone** watering or feeding by 1 day, 3 days or a week (action `green_finger.postpone`); recording
+  the next watering or feeding resets it.
+- **Mark as watered automatically** (optional, per plant): a jump of 10 points or more in the assigned soil
+  sensor records a watering today.
+- **Plants needing care** sensor: how many plants need water or feeding, with their names - for badges and
+  notifications.
+- The form to change a plant can search for a species too; picking one keeps your name, schedule and ranges
+  until you press *Fill from OpenPlantbook data*.
+
+### Changed
+- Add / edit form: the essentials first (species search, name, room, spot, sensor), then collapsible sections
+  with a one-line summary (*Care schedule*, *Ideal ranges*, *Fertiliser and soil*, *Notes*). Save and Cancel
+  stay in view, the window keeps its scroll position, mistakes are shown in the form instead of a browser
+  pop-up, and *Delete this plant* moved into the edit window with a confirmation step.
+- The plant form of the integration page (*Settings > Devices & services*) has the same order: essentials,
+  then collapsed *More details*, *Ideal ranges* and *Fertiliser and soil* sections.
+- The buttons on a large card are now watered, fed, information and edit; compact cards open the information
+  window when the row is tapped.
+- README rewritten for non-technical readers, with pictures.
+- The integration is classed as `calculated` (it does not poll anything).
+
+### Removed
+- The `care` attribute (the OpenPlantbook care texts) is gone from the plant sensor: it duplicated saved data
+  in every state update. The texts are in the information window and in the response of
+  `green_finger.get_species`.
+
+### Efficiency and fixes
+- Plant attributes are no longer written to the history database - only the state is. Less disk and less work.
+- One shared midnight timer instead of one per plant; sensor, device and registry lookups are cached and only
+  redone when something relevant changes; changes to one plant no longer recompute the others.
+- The card finds its plants when the entity registry changes instead of scanning every entity on every
+  update, and redraws only the plants that changed.
+- A species being downloaded is shared by everything that asks for it; one that OpenPlantbook does not know
+  is not asked for again for six hours; downloaded data is written to disk before a reload.
+- Answers that are not JSON, and a "forbidden" answer, are handled and reported readably.
+- A plant name made only of spaces is refused with a message instead of an error.
+- Overdue gauges of different plants no longer share animation names.
+
 ## 0.1.5
 - OpenPlantbook rate limit: after a "too many requests" answer nothing more is sent until the wait the
   API asked for is over, and the message says how long to wait.
