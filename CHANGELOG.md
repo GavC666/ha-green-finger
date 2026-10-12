@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.2
+- Card: the one-line summary of a collapsible section (for example *Care schedule: water every 7 d, feed every 30 d*)
+  no longer pushes the section title onto two lines on a narrow phone; a dot never ends a line on its own.
+- Card: on very narrow screens (under 380 px) the add / edit form uses one column and the From / To
+  dates of a period sit on their own lines, so month names and dates are no longer cut off.
+
 ## 0.2.1
 - Fix: the daily recalculation at 00:01 (days left, due dates) was run by Home Assistant in a worker thread and
   refused with a thread-safety error, so plants only updated when a sensor reported. It now runs in the event

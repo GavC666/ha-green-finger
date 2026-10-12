@@ -9,7 +9,7 @@
 (() => {
   'use strict';
 
-  const VER = '0.2.1';
+  const VER = '0.2.2';
   const DOMAIN = 'green_finger';
   const GRN = '#34d058', AMB = '#ffb000', RED = '#ff3b30', BLU = '#4aa8ff', MUT = 'var(--gf-mut)';
   const SEV_COL = [GRN, AMB, RED];
@@ -191,7 +191,8 @@
     details.sx{border:1px solid var(--gf-line);border-radius:12px;margin:8px 0}
     details.sx>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:10px 12px;font-weight:500}
     details.sx>summary::-webkit-details-marker{display:none}
-    details.sx>summary small{margin-left:auto;font-weight:400;color:var(--gf-mut);font-size:80%;text-align:right;min-width:0}
+    details.sx>summary .t{flex:none;white-space:nowrap}
+    details.sx>summary small{flex:1;min-width:0;font-weight:400;color:var(--gf-mut);font-size:80%;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     details.sx>summary ha-icon.chev{flex:none;--mdc-icon-size:18px;transition:transform .15s}
     details.sx[open]>summary ha-icon.chev{transform:rotate(180deg)}
     details.sx>.in{padding:2px 12px 6px}
@@ -212,6 +213,7 @@
     .md.ev{grid-template-columns:minmax(0,1fr) auto;align-items:center}
     .md.ev b{font-weight:400;font-size:120%}
     @media(min-width:520px){.per{grid-template-columns:1fr 1fr 110px 40px}}
+    @media(max-width:379px){.g2{grid-template-columns:1fr}.per{grid-template-columns:1fr auto}.per .fld:nth-child(-n+2){grid-column:1/-1}}
     .res{display:flex;gap:10px;align-items:center;padding:8px;border-radius:12px;background:var(--gf-field);margin:0 0 6px;cursor:pointer;border:1px solid transparent}
     .res.on{border-color:var(--gf-pri)}
     .res img{width:52px;height:52px;border-radius:10px;object-fit:cover;background:rgba(127,127,127,.15);flex:none}
@@ -498,12 +500,12 @@
       const sci = a.species_name && String(a.species_name).toLowerCase() !== String(a.display_name).toLowerCase()
         ? '<div class="sci">' + esc(a.species_name) + '</div>' : '';
       const where = [a.area, a.location].filter(Boolean).map(esc).join(' ' + DASH + ' ');
-      const post = a.water_postponed_days > 0 ? ' ' + DOT + ' <span style="white-space:nowrap">postponed ' + a.water_postponed_days + 'd</span>' : '';
+      const post = a.water_postponed_days > 0 ? ' <span style="white-space:nowrap">' + DOT + ' postponed ' + a.water_postponed_days + 'd</span>' : '';
       return '<div class="plant" style="background:' + this._bg(sev) + '">' + batt +
         '<div class="head" data-a="info" data-e="' + esc(eid) + '">' + pic + '<div style="min-width:0"><div class="nm">' + esc(a.display_name) + '</div>' + sci +
         (where ? '<div class="info"><ha-icon icon="mdi:map-marker" style="--mdc-icon-size:13px"></ha-icon> ' + where + '</div>' : '') +
         '<div class="info">Watered ' + fmt(a.last_watered) + ' (' + ago(a.last_watered) + ')' +
-        (a.water_period && a.water_period !== '1 Jan - 31 Dec' ? ' ' + DOT + ' <span style="white-space:nowrap">' + esc(a.water_period) + '</span>' : '') + post + '</div></div></div>' +
+        (a.water_period && a.water_period !== '1 Jan - 31 Dec' ? ' <span style="white-space:nowrap">' + DOT + ' ' + esc(a.water_period) + '</span>' : '') + post + '</div></div></div>' +
         '<div class="gauges" style="grid-template-columns:repeat(' + cols.length + ',1fr)">' + cols.join('') + '</div>' +
         '<div class="acts">' + this._btn('water', 'mdi:watering-can', BLU, eid, 'Watered today') + this._btn('feed', 'mdi:sack', GRN, eid, 'Fertilised today') +
         this._btn('info', 'mdi:information', 'var(--primary-text-color)', eid, 'Information') + this._btn('edit', 'mdi:cog', '#ffcc00', eid, 'Edit plant') + '</div></div>';
@@ -867,7 +869,7 @@
       const v = ps.filter((p) => p[4] > 0).map((p) => p[4]);
       if (!v.length) return 'rest';
       const lo = Math.min(...v), hi = Math.max(...v);
-      return 'every ' + (lo === hi ? lo : lo + DASH + hi) + ' days';
+      return 'every ' + (lo === hi ? lo : lo + DASH + hi) + ' d';
     }
     _speciesBlock(d) {
       const spin = (t) => '<div class="spin"><span class="loader"></span>' + t + '</div>';
@@ -932,7 +934,7 @@
         ? '<label class="fld">Common name shown<select data-f="common_name"><option value="">Same as the name</option>' +
           names.map((n) => '<option value="' + esc(n) + '"' + (n === d.common_name ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</select></label>' : '';
       const sum = this._summaries(d);
-      const sx = (id, title, inner) => '<details class="sx" data-sec="' + id + '"' + (d.open[id] ? ' open' : '') + '><summary>' + title +
+      const sx = (id, title, inner) => '<details class="sx" data-sec="' + id + '"' + (d.open[id] ? ' open' : '') + '><summary><span class="t">' + title + '</span>' +
         '<small>' + sum[id] + '</small><ha-icon class="chev" icon="mdi:chevron-down"></ha-icon></summary><div class="in">' + inner + '</div></details>';
       const shown = d.picture || d.speciesPicture;
       const add = d.mode === 'add';

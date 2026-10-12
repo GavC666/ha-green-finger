@@ -253,7 +253,7 @@ test('the sections of the form stay open when the form is redrawn', () => {
   el._d.open.care = true;
   el._renderForm();
   assert.equal(care().open, true);
-  assert.match(care().querySelector('summary small').textContent, /every 14 days/);
+  assert.match(care().querySelector('summary small').textContent, /every 14 d\b/);
 });
 
 test('typed text survives a redraw', () => {
