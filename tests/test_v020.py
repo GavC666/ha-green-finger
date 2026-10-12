@@ -249,19 +249,35 @@ async def test_no_plant_attribute_is_recorded(hass: HomeAssistant) -> None:
     assert set(logic.ATTRIBUTE_NAMES) <= set(GreenFingerSensor._unrecorded_attributes)
 
 
-async def test_the_midnight_refresh_is_one_timer_for_all_plants(hass: HomeAssistant) -> None:
-    entry = _entry({"a": _plant("Fig"), "b": _plant("Cactus")})
-    await _setup(hass, entry)
-    manager = entry.runtime_data
-    with patch.object(manager, "async_refresh_all") as refresh:
-        from homeassistant.util import dt as dt_util
-        from pytest_homeassistant_custom_component.common import async_fire_time_changed
+async def test_the_midnight_action_runs_in_the_event_loop(hass: HomeAssistant) -> None:
+    """Home Assistant runs a plain function in a worker thread, where a state must not be written."""
+    from homeassistant.core import is_callback
 
-        now = dt_util.now()
-        midnight = (now + timedelta(days=1)).replace(hour=0, minute=1, second=1, microsecond=0)
-        async_fire_time_changed(hass, midnight)
-        await hass.async_block_till_done()
-    assert refresh.call_count == 1
+    captured: list = []
+    from homeassistant.helpers.event import async_track_time_change as real
+
+    def spy(hass_, action, **kwargs):
+        captured.append(action)
+        return real(hass_, action, **kwargs)
+
+    with patch("custom_components.green_finger.async_track_time_change", spy):
+        await _setup(hass, _entry({"a": _plant("Fig"), "b": _plant("Cactus")}))
+    assert len(captured) == 1, "one timer for all plants"
+    assert is_callback(captured[0]), "the midnight action must be a @callback"
+
+
+async def test_midnight_recalculates_the_days_left(hass: HomeAssistant, freezer) -> None:
+    from pytest_homeassistant_custom_component.common import async_fire_time_changed
+
+    freezer.move_to("2026-10-12 12:00:00+00:00")
+    entry = _entry({"a": {**_plant("Fig"), "last_watered": "2026-10-12", "last_fertilised": "2026-10-12"}})
+    await _setup(hass, entry)
+    assert hass.states.get("sensor.fig").attributes["water_days_left"] == 7
+
+    freezer.move_to("2026-10-13 12:00:00+00:00")  # the next day, after the 00:01 timer in any time zone
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert hass.states.get("sensor.fig").attributes["water_days_left"] == 6
 
 
 async def test_the_plant_form_refuses_a_name_of_spaces(hass: HomeAssistant) -> None:

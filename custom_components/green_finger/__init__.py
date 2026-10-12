@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -176,10 +177,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreenFingerConfigEntry) 
 
     entry.async_on_unload(hass.bus.async_listen(er.EVENT_ENTITY_REGISTRY_UPDATED, _entity_registry_updated))
     entry.async_on_unload(hass.bus.async_listen(dr.EVENT_DEVICE_REGISTRY_UPDATED, _device_registry_updated))
-    # the days left change at midnight: one timer for every plant
-    entry.async_on_unload(
-        async_track_time_change(hass, lambda _now: manager.async_refresh_all(), hour=0, minute=1, second=0)
-    )
+    # the days left change at midnight: one timer for every plant. It must be a @callback: Home Assistant runs a
+    # plain function in a worker thread, and a state may only be written from the event loop.
+    @callback
+    def _midnight(_now: datetime) -> None:
+        manager.async_refresh_all()
+
+    entry.async_on_unload(async_track_time_change(hass, _midnight, hour=0, minute=1, second=0))
     if client is not None:
         entry.async_create_background_task(hass, manager.async_fill_missing_species(), "green_finger_species")
     return True

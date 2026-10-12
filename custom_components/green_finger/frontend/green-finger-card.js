@@ -9,7 +9,7 @@
 (() => {
   'use strict';
 
-  const VER = '0.2.0';
+  const VER = '0.2.1';
   const DOMAIN = 'green_finger';
   const GRN = '#34d058', AMB = '#ffb000', RED = '#ff3b30', BLU = '#4aa8ff', MUT = 'var(--gf-mut)';
   const SEV_COL = [GRN, AMB, RED];

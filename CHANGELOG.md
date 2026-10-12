@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1
+- Fix: the daily recalculation at 00:01 (days left, due dates) was run by Home Assistant in a worker thread and
+  refused with a thread-safety error, so plants only updated when a sensor reported. It now runs in the event
+  loop. (The error was visible in the Home Assistant log since the first releases.)
+
 ## 0.2.0
 
 ### New
