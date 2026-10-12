@@ -152,6 +152,16 @@ The **Delete this plant** button is at the bottom of that window and asks you to
 Choose the size in the card settings, or press the small switch next to the filters to change it at
 once. The switch remembers your choice on that phone, tablet or computer.
 
+### Phone, tablet or computer
+
+The cards fit the space they are given: one column on a phone, two or more on a tablet or a computer.
+Windows such as the information window and the add form open from the bottom of a phone screen and in the
+middle on a tablet or computer.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/GavC666/ha-green-finger/main/docs/img/tablet.png" alt="Compact cards in two columns on a tablet" width="620">
+</p>
+
 ### The information window
 
 Press **i** to see everything about a plant. Choose what you want to look at:
