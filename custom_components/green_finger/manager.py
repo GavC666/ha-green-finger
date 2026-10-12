@@ -254,7 +254,7 @@ class GreenFingerManager:
         if missing_at is not None and not refresh and time.monotonic() - missing_at < UNKNOWN_SPECIES_SECONDS:
             return cached  # asked recently and OpenPlantbook does not have it: do not ask again
         running = self._inflight.get(pid)
-        if running is None:  # otherwise the same species is already being downloaded: share that request
+        if running is None or running.done():  # a download that is still running is shared, a finished one is not
             running = self.hass.async_create_task(self._download_species(pid))
             self._inflight[pid] = running
             running.add_done_callback(lambda task, key=pid: self._download_done(key, task))
@@ -269,7 +269,8 @@ class GreenFingerManager:
 
     @callback
     def _download_done(self, pid: str, task: asyncio.Task) -> None:
-        self._inflight.pop(pid, None)
+        if self._inflight.get(pid) is task:
+            del self._inflight[pid]
         if not task.cancelled():
             task.exception()  # a failure was already handed to every caller that waited for it
 

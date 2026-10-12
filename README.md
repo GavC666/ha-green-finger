@@ -1,309 +1,340 @@
 <p align="center">
-  <img src="custom_components/green_finger/brand/logo@2x.png" width="180" alt="The Green Finger logo">
+  <img src="https://raw.githubusercontent.com/GavC666/ha-green-finger/main/custom_components/green_finger/brand/logo@2x.png" width="170" alt="The Green Finger logo">
 </p>
 
 # The Green Finger
 
-A Home Assistant integration that gives **every plant its own entity** - with watering and
-feeding schedules, days left, live soil sensor readings, care tips, ideal fertiliser mix, soil mix,
-location and pictures - plus a dashboard card to look after them all.
+**Look after every plant from Home Assistant.** Each plant gets a card that shows when it was last
+watered, when it needs water or feeding next, and what its soil sensor says. One tap records "I watered it".
 
-> **Early development - personal project, no support.** This is an unfinished 0.1.0 shared as-is.
-> Issues and discussions are switched off for now and it may change or break without notice.
-> It has had limited testing and is not in the HACS default list.
+<p align="center">
+  <img src="https://raw.githubusercontent.com/GavC666/ha-green-finger/main/docs/img/overview.png" alt="Large plant cards with gauges on a computer screen">
+</p>
+
+> **Early development - a personal project, shared as it is.** Issues and discussions are switched off,
+> there is no support, and things may change. Please back up before you update.
 
 ## Contents
 
-- [Features](#features)
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Get your OpenPlantbook API credentials](#get-your-openplantbook-api-credentials)
-- [Set up the integration](#set-up-the-integration)
-- [Add your plants](#add-your-plants)
-- [Assign a soil sensor](#assign-a-soil-sensor)
-- [Schedules explained](#schedules-explained)
-- [The dashboard card](#the-dashboard-card)
-- [Own pictures and the camera](#own-pictures-and-the-camera)
-- [OpenPlantbook request limits](#openplantbook-request-limits)
-- [Entities and attributes](#entities-and-attributes)
-- [Services and automations](#services-and-automations)
-- [Updating, removing, backing up](#updating-removing-backing-up)
-- [Troubleshooting](#troubleshooting)
-- [Privacy and data](#privacy-and-data)
-- [Development](#development)
+1. [What it does](#what-it-does)
+2. [What you need](#what-you-need)
+3. [Install](#install)
+4. [Get your free OpenPlantbook key](#get-your-free-openplantbook-key)
+5. [Set up in Home Assistant](#set-up-in-home-assistant)
+6. [Put the plants on a dashboard](#put-the-plants-on-a-dashboard)
+7. [Add your first plant](#add-your-first-plant)
+8. [Using it every day](#using-it-every-day)
+9. [Get a message when a plant needs care](#get-a-message-when-a-plant-needs-care)
+10. [Good to know](#good-to-know)
+11. [Update, remove, back up](#update-remove-back-up)
+12. [Troubleshooting](#troubleshooting)
+13. [For tinkerers](#for-tinkerers)
 
-## Features
+## What it does
 
-- **One entity per plant** (`sensor.<plant>`): the state is `ok`, `needs_water`, `needs_feed` or
-  `needs_both`; everything else is an attribute you can use in templates and automations.
-- **Species lookup** from [OpenPlantbook](https://open.plantbook.io): search by name, get the picture,
-  ideal soil moisture and temperature, care texts and a suggested watering and feeding schedule.
-- **Detailed schedules**: up to six watering and six feeding periods with any start and end date and
-  interval, rest periods, and periods that wrap the year end (for example 1 Dec - 29 Feb).
-  Southern hemisphere seasons are handled from your Home Assistant location.
-- **Soil sensors**: assign a soil moisture sensor; temperature and battery are found on the same
-  device. Live gauges with green / amber / red zones from the ideal ranges. A dry plant is
-  reported as needing water even before its timer is due.
-- **Fertiliser and soil**: ideal N-P-K ratio (taken from the care text when it names one) and a
-  soil mix made of any parts you like, such as `40% peat`, `30% perlite`, `30% bark`.
-- **Location and pictures**: put each plant in a Home Assistant area plus a free-text spot, and use
-  your own picture instead of the species one.
-- **Native UI**: plants are config subentries - add, edit and delete them from
-  *Settings > Devices & services > The Green Finger*, or from the card.
-- **Buttons and services** to mark a plant watered or fertilised, also usable from automations.
-- A bundled dashboard card, `custom:green-finger-card`, registered automatically.
+- **A card for every plant** with the last watering, the days left until the next watering and
+  feeding, and live soil moisture, temperature and battery when you have a soil sensor.
+- **Finds your plant for you.** Search by name, pick the species and the picture, ideal conditions, care
+  tips and a watering and feeding plan are filled in from [OpenPlantbook](https://open.plantbook.io).
+- **Two sizes.** *Large* with gauges, or *compact* with one slim row per plant.
+- **Works on a phone, a tablet and a computer.**
+- **Optional:** mark a plant as watered automatically when its soil sensor shows it was watered.
 
-## Requirements
+## What you need
 
-- Home Assistant **2025.7** or newer.
-- A free [OpenPlantbook](https://open.plantbook.io) account for species search (optional - you can
-  enter plants by hand without it).
-- Optional: a soil moisture sensor per plant (any entity with device class *moisture*).
-- Optional: Home Assistant's `image_upload` integration for uploading your own pictures (it is part of
-  the default Home Assistant setup).
+| | |
+|---|---|
+| **Home Assistant 2025.7 or newer** | with [HACS](https://hacs.xyz) installed |
+| **A free OpenPlantbook account** | to look species up by name (optional - you can type everything in yourself) |
+| **A soil moisture sensor** | one per plant, optional - without it the plant follows its watering plan |
 
-## Installation
+## Install
 
-### With HACS (custom repository)
-
-1. Install [HACS](https://hacs.xyz) if you have not already.
-2. In HACS open the three-dot menu (top right) and choose **Custom repositories**.
+1. In Home Assistant open **HACS**.
+2. Press the **three dots** at the top right and choose **Custom repositories**.
 3. Paste `https://github.com/GavC666/ha-green-finger`, set the type to **Integration** and press **Add**.
-4. Find **The Green Finger** in HACS, open it and press **Download**.
-5. **Restart Home Assistant** (*Settings > System > Restart*).
+4. Search for **The Green Finger** in HACS, open it and press **Download**.
+5. **Restart Home Assistant** (*Settings > System*, power button at the top right > *Restart Home Assistant*).
 
-### Manually
+<details>
+<summary>Without HACS (manual install)</summary>
 
-1. Download this repository (green *Code* button > *Download ZIP*) and unzip it.
-2. Copy the folder `custom_components/green_finger` into the `custom_components` folder of your
-   Home Assistant configuration (create `custom_components` if it does not exist), so you end up with
-   `config/custom_components/green_finger/manifest.json`.
-3. **Restart Home Assistant.**
+1. Download this page as a ZIP (green **Code** button > *Download ZIP*) and unzip it.
+2. Copy the folder `custom_components/green_finger` into the `custom_components` folder of your Home
+   Assistant (create it if it is not there).
+3. Restart Home Assistant.
+</details>
 
-## Get your OpenPlantbook API credentials
+## Get your free OpenPlantbook key
 
-OpenPlantbook is a free community database of plant species. The integration uses it to search
-species and download pictures, ideal ranges and care texts. You need a **client ID** and a
-**client secret**:
+OpenPlantbook is a free community database of plants. You need a **client ID** and a **secret** from it
+so the integration may look species up. (Skip this if you want to enter every plant by hand.)
 
-1. Go to <https://open.plantbook.io/register/> and create an account (or press the *Google* /
-   *GitHub* button on the [login page](https://open.plantbook.io/login/) to sign in with those).
-   Confirm your e-mail address if asked.
-2. Log in and open <https://open.plantbook.io/apikey/show/> (the **API key** page; it is also in the
-   site menu after you log in).
-3. If the page shows no key yet, press the button to generate one.
-4. Copy the **Client ID** and the **Secret** shown there. Keep the secret private.
+1. Go to <https://open.plantbook.io/register/> and create an account, or sign in with Google or GitHub.
+   Confirm your e-mail address if it asks you to.
+2. Log in and open <https://open.plantbook.io/apikey/show/> (the **API key** page).
+3. If no key is shown yet, press the button to create one.
+4. Copy the **Client ID** and the **Secret**. Keep the secret to yourself.
 
-Notes:
+## Set up in Home Assistant
 
-- Free accounts have a daily request limit. A search fetches the details of the top results (so the
-  picture and ranges can be shown), and everything fetched is cached in Home Assistant, so searching
-  the same plants again costs nothing.
-- Credentials are optional. Without them you add plants by hand and every field still works; you
-  just do not get the species search, picture and suggested schedules.
+1. Open *Settings > Devices & services* and press **Add integration**.
+2. Search for **The Green Finger** and select it.
+3. Paste the **Client ID** and the **Secret** (or leave both empty) and press **Submit**.
 
-## Set up the integration
+That is all. You can change the key later with the three dots on the integration > **Reconfigure**.
 
-1. *Settings > Devices & services > **Add integration***, search for **The Green Finger** and select it.
-2. Paste the OpenPlantbook **Client ID** and **Secret** (or leave both empty to work without species
-   lookup). The credentials are checked against OpenPlantbook straight away.
-3. Press **Submit**. The integration is created with no plants yet.
+## Put the plants on a dashboard
 
-You can change or remove the credentials later: *Settings > Devices & services > The Green Finger >
-three-dot menu > Reconfigure*.
+1. Open the dashboard you want, press the pencil (**Edit**) and then **Add card**.
+2. Search for **The Green Finger** and pick it.
+3. Give it a title and choose the **Card size**: *Large* or *Compact*. Press **Save**.
 
-## Add your plants
+If the card says *Custom element doesn't exist*, reload the page (`Ctrl+F5`, or pull down on a phone).
 
-There are two equivalent ways; both create the same plants.
+There are two cards:
 
-### From the integration page
+| Card | Use it for |
+|---|---|
+| **The Green Finger** | all your plants in one card, with the *Add plant* button and filters |
+| **The Green Finger - one plant** | a single plant that you can place and resize anywhere on a dashboard |
 
-1. *Settings > Devices & services > The Green Finger*.
-2. Press **Add plant** (next to *Plant*).
-3. **Find the species** - type the Latin name (for example `monstera deliciosa`) or a common name such
-   as `marigold`, and submit; leave it empty to enter everything by hand. Pick the species
-   from the list; the name, schedules, ranges and N-P-K are prefilled from it.
-4. **Plant details** - check the name and common name, choose the room (a Home Assistant area), the
-   spot in the room, when you last watered and fertilised, the moisture sensor and the ideal ranges.
-   Open *Fertiliser and soil mix* for N-P-K, fertiliser product, soil mix and soil notes.
-5. **Schedule** - one period per line, see [Schedules explained](#schedules-explained). Submit.
+## Add your first plant
 
-To change a plant later, open it on the integration page and press the cog next to the plant >
-**Reconfigure**.
+Press **Add plant** on the card.
 
-### From the dashboard card
+<p align="center">
+  <img src="https://raw.githubusercontent.com/GavC666/ha-green-finger/main/docs/img/add.png" alt="Adding a plant on a phone" width="760">
+</p>
 
-Press **Add plant** on the card and fill the form in. It offers the same fields, plus uploading your
-own picture. See [The dashboard card](#the-dashboard-card).
+1. **Find the species** (optional). Type a name such as *monstera* or *marigold* and pick it from the
+   list. The name, picture, watering plan, feeding plan and ideal ranges fill in by themselves.
+2. **The plant.** Give it a name, choose the room and the spot in the room, and say whether it lives
+   inside or outside. Add a photo with **Take photo** or **Choose file**.
+3. **Soil sensor** (optional). Pick the soil moisture sensor that belongs to this plant. A sensor can
+   belong to one plant only.
+4. Open the sections underneath if you want to change something - they are all optional:
 
-## Assign a soil sensor
+   | Section | What is in it |
+   |---|---|
+   | **Care schedule** | when you last watered and fed it, and how often it needs water and feeding through the year |
+   | **Ideal ranges** | the soil moisture and temperature the plant likes (these colour the gauges) |
+   | **Fertiliser and soil** | the N-P-K numbers, the fertiliser you use and what the soil is made of |
+   | **Notes** | anything you want to remember |
 
-Choose the soil moisture sensor in the plant's details (*Soil moisture sensor*). Once assigned:
+5. Press **Save**. The plant appears on the card straight away.
 
-- the card shows live moisture, temperature and battery, with the sensor's name;
-- the **ideal moisture** and **ideal temperature** ranges (prefilled from the species, editable)
-  control the green zone of the gauges, with an amber margin and red beyond;
-- if the soil reads *dry* or *low* the plant is reported as `needs_water` even if its timer is not
-  due, and the watering timer continues to run so you still see the days left.
+Change a plant later with its **cog** button (large cards) or from the information window (compact cards).
+The **Delete this plant** button is at the bottom of that window and asks you to confirm.
 
-Temperature and battery are looked up from the other sensors on the same device as the moisture
-sensor, so use a sensor that belongs to a device (as Zigbee, Bluetooth and Wi-Fi sensors do).
+## Using it every day
 
-## Schedules explained
+### The buttons
 
-A schedule is a list of periods. Each period has a start date, an end date and a number of days
-between actions. In the config flow and the services one period is one line:
+| Button | What it does |
+|---|---|
+| Watering can | "I watered it today" - starts the watering count again |
+| Sack | "I fed it today" |
+| **i** | Opens the information window (see below). On a compact card you can also tap the plant's row. |
+| Cog (large cards) | Change the plant |
+
+### Large or compact
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/GavC666/ha-green-finger/main/docs/img/sizes.png" alt="The large card next to the compact card on a phone" width="760">
+</p>
+
+- **Large** shows gauges: how many days are left, and where the soil moisture and temperature sit
+  between too dry or cold (red), a little off (amber) and just right (green).
+- **Compact** shows the same facts as one slim row per plant - days until watering and feeding,
+  moisture, temperature and battery - and takes a fraction of the room.
+
+Choose the size in the card settings, or press the small switch next to the filters to change it at
+once. The switch remembers your choice on that phone, tablet or computer.
+
+### The information window
+
+Press **i** to see everything about a plant. Choose what you want to look at:
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/GavC666/ha-green-finger/main/docs/img/info.png" alt="The information window: My plant and OpenPlantbook" width="760">
+</p>
+
+- **My plant** is everything you and the card know: the care plan and next dates, the live sensor values,
+  where the plant lives, fertiliser and soil, your notes and the full schedules.
+- **OpenPlantbook** is what the plant database says about the species: ideal conditions and care tips.
+  It is **saved in Home Assistant the first time**, so opening it again costs nothing.
+  Press **Refresh** only if you want the newest information.
+
+### Not today? Postpone
+
+In **My plant** there are *Postpone watering* and *Postpone feeding* buttons (**+1 day**, **+3 days**,
+**+1 week**). The next date moves back; press them again to add more. Recording the next watering or feeding
+sets it right again.
+
+### Filters
+
+**Needs water** and **Needs feeding** at the top of the card show only the plants that need it. A plant
+needs water when its timer is due or when its soil sensor reads dry.
+
+### Marked as watered automatically (optional)
+
+When you pick a soil sensor, a switch appears: **Mark as watered automatically when the soil gets much
+wetter**. With it on, a jump of 10 points or more in the soil moisture is recorded as a watering today.
+It is off until you switch it on.
+
+## Get a message when a plant needs care
+
+The integration adds one more sensor, **Plants needing care**, under *The Green Finger*. Its value is how
+many plants need water or feeding right now, and it lists their names. It is handy for a badge on a
+dashboard, and for a message on your phone each morning:
+
+```yaml
+alias: Plants need care
+triggers:
+  - trigger: time
+    at: "08:00:00"
+conditions:
+  - condition: numeric_state
+    entity_id: sensor.the_green_finger_plants_needing_care
+    above: 0
+actions:
+  - action: notify.notify        # replace with your own notify service
+    data:
+      message: >-
+        Plants that need care:
+        {{ state_attr('sensor.the_green_finger_plants_needing_care', 'plants') | join(', ') }}
+```
+
+(Create it in *Settings > Automations & scenes > Create automation > three dots > Edit in YAML*.)
+The sensor can be switched off like any other entity if you do not want it.
+
+## Good to know
+
+- **The camera.** *Take photo* shows a live camera only when Home Assistant is opened through an `https://`
+  address (your Nabu Casa link, for example). On plain `http://` addresses, such as
+  `http://homeassistant.local:8123`, the browser does not allow it and the phone's own photo chooser
+  opens instead. *Choose file* works everywhere.
+- **OpenPlantbook limits.** The free account allows a limited number of requests. The integration is
+  careful: a search is one request, a species is downloaded once and then kept, and after a "too many
+  requests" answer it waits as long as it was asked to. Everything already saved keeps working.
+  The limit belongs to your client ID, so anything else that uses the same key shares it.
+- **Where things are kept.** Your plants are part of Home Assistant's own settings and are in every
+  backup. The species data downloaded from OpenPlantbook is kept in Home Assistant's storage. Photos
+  you add are kept by Home Assistant's *Image upload*, which is part of the standard setup.
+- **Privacy.** OpenPlantbook receives the text you search for and the species you open, with your client
+  ID. If a name finds nothing, the text is also sent to [GBIF](https://www.gbif.org), a public
+  biodiversity database, to find the Latin name. Nothing else leaves your Home Assistant.
+- **Thanks.** Species data comes from [OpenPlantbook](https://open.plantbook.io). Please follow their
+  terms. This project is not connected to OpenPlantbook.
+
+## Update, remove, back up
+
+- **Update:** HACS shows an update when a new version is published. Press **Update**, then restart
+  Home Assistant and reload your browser page.
+- **Remove a plant:** open it on the card, press the cog (or **Edit plant**) and **Delete this plant**.
+- **Remove the integration:** *Settings > Devices & services > The Green Finger > three dots > Delete*,
+  then remove it in HACS.
+- **Back up:** nothing extra to do. Plants are part of every normal Home Assistant backup.
+
+## Troubleshooting
+
+| What you see | What to try |
+|---|---|
+| The card says *Custom element doesn't exist* | Reload the page (`Ctrl+F5`). Make sure Home Assistant was restarted after installing. |
+| Searching says the key was rejected | Copy the client ID and secret again from <https://open.plantbook.io/apikey/show/> and use **Reconfigure** on the integration. |
+| Searching says it is limiting requests | Wait the time the message gives. Plants you already added keep working. |
+| A search finds nothing | Try the Latin name, or a shorter name. OpenPlantbook may not list the plant; you can still add it by hand. |
+| A sensor is greyed out in the list | It belongs to another plant. A sensor can belong to one plant only. |
+| No temperature or battery shown | The soil sensor's device needs enabled temperature and battery sensors. |
+| *Needs water* but the timer looks fine | The soil sensor reads dry or low. Check the *Ideal ranges* of the plant. |
+| Take photo opens a photo chooser | Home Assistant is opened over `http://`. See [Good to know](#good-to-know). |
+| The size switch seems to do nothing after changing the card settings | Press the switch once more: it follows the card setting until you choose differently on that device. |
+
+For more detail: *Settings > System > Logs* (search for `green_finger`). The integration page also has a
+**Download diagnostics** entry; your key is removed from it.
+
+## For tinkerers
+
+<details>
+<summary>Schedules in text form</summary>
+
+A schedule is a list of periods, one per line:
 
 ```text
 1 Mar - 30 Nov: every 10 days
-1 Dec - 29 Feb: every 28 days
+1 Dec - 29 Feb: rest
 ```
 
-- `every N days` or just `N` both work; use `rest` for a pause (`1 Dec - 29 Feb: rest`).
-- Dates are day and month; the year is ignored, so a period repeats every year.
-- A period may wrap the year end (`1 Dec - 29 Feb`).
-- Outside every period the plant is at rest: no due date, never overdue.
-- Up to six periods each for watering and feeding. Use `29 Feb` as the last day of February.
-- The suggested schedule from OpenPlantbook is read from its care text (spring / summer / autumn /
-  winter, month ranges such as "April through August", "every 2-3 weeks", "1-2 times a month",
-  "reduce in winter"). The upper end of a range is used. It is a suggestion - always check it.
+- `every N days` or just `N`; `rest` means a pause.
+- Dates are day and month (the year is ignored), so a period repeats every year, and it may run over the
+  new year (`1 Dec - 29 Feb`). Use `29 Feb` as the last day of February.
+- Outside every period the plant rests: nothing is due and nothing is overdue.
+- Up to six periods each for watering and feeding.
+- The plan suggested for a species is read from its care text ("every 2-3 weeks in spring and summer",
+  "1-2 times a month", "reduce in winter" ...); the upper end of a range is used. Check it once.
+</details>
 
-## The dashboard card
+<details>
+<summary>Entities</summary>
 
-The card is bundled with the integration and registered automatically (no manual resource needed).
-After installing or updating, restart Home Assistant. If a dashboard tab that was already open shows
-*Custom element doesn't exist: green-finger-card*, refresh that tab (`Ctrl+F5`).
+For a plant called *Weeping Fig*:
 
-Add it to a dashboard:
-
-1. Edit the dashboard > **Add card** > search for *The Green Finger* (under custom cards), or
-   choose **Manual** and paste:
-
-   ```yaml
-   type: custom:green-finger-card
-   title: Plants          # optional
-   icon: mdi:sprout       # optional
-   ```
-
-2. Save. Every plant of the integration appears automatically.
-
-### Layout options
-
-```yaml
-type: custom:green-finger-card
-title: Plants
-columns: 2          # fixed number of columns; leave out for automatic
-min_width: 380      # automatic columns: minimum width of one plant in px
-sort: urgency       # name (default) or urgency = needs water / feeding first
-```
-
-### One card per plant
-
-To move plants around freely (reorder, side by side, different sections or views), add one card per
-plant. In a *sections* view each one can be dragged and resized like any other card:
-
-```yaml
-type: custom:green-finger-plant-card
-entity: sensor.weeping_fig
-```
-
-Both cards offer the same buttons and pop-ups; the list card additionally has the *Add plant* button
-and the filters.
-
-What the card gives you:
-
-- a card per plant with vertical LED gauges for watering, fertilising, soil moisture and temperature;
-- battery level and sensor name in the top right, the plant picture with a status ring;
-- quick buttons: *watered*, *fertilised*, *care & tips*, *edit* (cog) and *delete*;
-- the care pop-up with ideal ranges, N-P-K, soil mix, schedules, OpenPlantbook care tips and your notes;
-- filters **Only plants needing water** and **Only plants needing fertiliser**;
-- **Add plant** and edit forms with species search, period editors, sensor, room, own picture upload
-  (take a photo or choose a file), N-P-K, soil mix and notes.
-
-## Entities and attributes
-
-For a plant called *Weeping Fig* you get:
-
-| Entity | Purpose |
+| Entity | What |
 |---|---|
-| `sensor.weeping_fig` | State `ok` / `needs_water` / `needs_feed` / `needs_both` plus all attributes below |
-| `button.weeping_fig_water` | Marks the plant watered today |
-| `button.weeping_fig_fertilise` | Marks the plant fertilised today |
+| `sensor.weeping_fig` | State `ok`, `needs_water`, `needs_feed` or `needs_both`; the details are attributes |
+| `button.weeping_fig_water` | Mark as watered today |
+| `button.weeping_fig_fertilise` | Mark as fed today |
+| `sensor.the_green_finger_plants_needing_care` | Number of plants needing water or feeding, with their names |
 
-Each plant is also a device, so you can give it an area from the device page.
+Each plant is a device, so it can be given an area from its device page.
+</details>
+
+<details>
+<summary>Attributes of a plant sensor</summary>
 
 | Attribute | Meaning |
 |---|---|
-| `water_days_left`, `feed_days_left` | Days until due (negative = overdue, `null` = rest period) |
+| `water_days_left`, `feed_days_left` | Days until due (negative = overdue, empty = resting) |
 | `water_status`, `feed_status` | `ok`, `due`, `overdue`, `rest`, `unknown` |
-| `water_interval`, `feed_interval` | Current interval in days (0 = rest) |
-| `next_water`, `next_feed` | Dates |
-| `last_watered`, `last_fertilised` | Dates |
-| `water_period`, `feed_period` | Label of the current period, such as `1 Mar - 30 Nov` |
-| `water_schedule`, `feed_schedule` | Periods `[start_month, start_day, end_month, end_day, days]` |
-| `moisture`, `temperature`, `battery`, `sensor_name`, `moisture_entity` | From the assigned sensor |
-| `moisture_status`, `temperature_status` | Zone words such as `dry`, `low`, `ok`, `high`, `wet`, `cold`, `hot` |
+| `water_interval`, `feed_interval` | Days between actions now (0 = resting) |
+| `next_water`, `next_feed`, `last_watered`, `last_fertilised` | Dates |
+| `water_postponed_days`, `feed_postponed_days` | Days added with *Postpone* |
+| `water_period`, `feed_period` | The period in force, such as `1 Mar - 30 Nov` |
+| `water_schedule`, `feed_schedule` | `[start month, start day, end month, end day, days]` |
+| `moisture`, `temperature`, `battery`, `sensor_name`, `moisture_entity` | From the soil sensor |
+| `moisture_status`, `temperature_status` | `dry` `low` `ok` `high` `wet`, `cold` `cool` `ok` `warm` `hot` |
 | `ideal_moisture`, `ideal_temperature` | `[min, max]` |
-| `fertiliser_npk`, `fertiliser_npk_label`, `fertiliser_name` | Ideal fertiliser, for example `[10, 10, 10]` and `10-10-10` |
-| `soil_mix`, `soil_notes` | Soil mix parts and notes |
-| `area`, `location`, `inside` | Where the plant lives |
+| `fertiliser_npk`, `fertiliser_npk_label`, `fertiliser_name` | For example `[10, 10, 10]` and `10-10-10` |
+| `soil_mix`, `soil_notes`, `notes` | Soil parts, soil notes, your notes |
+| `area`, `location`, `inside` | Where it lives |
 | `display_name`, `plant_name`, `common_name`, `species`, `species_name`, `species_alias`, `common_names` | Names |
-| `picture`, `species_picture`, `user_picture` | Picture in use, the species one, and whether yours is used |
-| `care` | OpenPlantbook care texts (watering, fertilization, sunlight, soil, pruning, origin ...) |
-| `notes`, `plant_id` | Your notes, and the plant's ID for services |
+| `species_saved_on` | The day its OpenPlantbook data was saved |
+| `picture`, `species_picture`, `user_picture` | The picture in use, the species picture, whether yours is used |
+| `auto_watered` | Whether *Mark as watered automatically* is on |
+| `plant_id` | The plant's ID |
 
-## Services and automations
+The attributes are not written to the Home Assistant history database; only the state is.
+</details>
 
-Use *Developer tools > Actions* to try them; all fields are described there.
+<details>
+<summary>Actions (services)</summary>
+
+Try them in *Developer tools > Actions*; every field is described there.
 
 | Action | Target | What it does |
 |---|---|---|
-| `green_finger.water` | a plant sensor | Record watering (optional `date`) |
-| `green_finger.fertilise` | a plant sensor | Record fertilising (optional `date`) |
-| `green_finger.update_plant` | a plant sensor | Change any detail; only the fields you send change |
-| `green_finger.remove_plant` | a plant sensor | Delete the plant |
-| `green_finger.add_plant` | - | Create a plant (schedules default from `species`) |
-| `green_finger.search_species` | - | Search OpenPlantbook, returns matches (response) |
-| `green_finger.get_species` | - | Species record and suggested schedule (response) |
-| `green_finger.refresh_species` | - | Download species data again |
+| `green_finger.water` | plant sensor | Record a watering (optional `date`) |
+| `green_finger.fertilise` | plant sensor | Record a feeding (optional `date`) |
+| `green_finger.postpone` | plant sensor | Move the next watering or feeding back (`kind`: `water` / `feed`, `days`) |
+| `green_finger.update_plant` | plant sensor | Change any detail; only the fields you send change |
+| `green_finger.remove_plant` | plant sensor | Delete the plant |
+| `green_finger.add_plant` | - | Create a plant (the plan defaults from `species`) |
+| `green_finger.search_species` | - | Search OpenPlantbook (returns the matches) |
+| `green_finger.get_species` | - | The saved species record and the suggested plan (`refresh: true` asks OpenPlantbook again) |
+| `green_finger.refresh_species` | - | Download the species data again |
 
-### Examples
-
-Notify when a plant needs water:
-
-```yaml
-automation:
-  - alias: Plant needs water
-    triggers:
-      - trigger: state
-        entity_id: sensor.weeping_fig
-        to: needs_water
-    actions:
-      - action: notify.mobile_app_phone
-        data:
-          message: "{{ trigger.to_state.attributes.display_name }} needs water"
-```
-
-Mark a plant watered when its moisture jumps (for example after you water it):
-
-```yaml
-automation:
-  - alias: Weeping fig watered
-    triggers:
-      - trigger: numeric_state
-        entity_id: sensor.soil_moisture_sensor_3_soil_moisture
-        above: 40
-    conditions:
-      - condition: state
-        entity_id: sensor.weeping_fig
-        state: needs_water
-    actions:
-      - action: green_finger.water
-        target:
-          entity_id: sensor.weeping_fig
-```
-
-Add a plant from a script with your own schedule:
+Add a plant from a script:
 
 ```yaml
 action: green_finger.add_plant
@@ -318,88 +349,40 @@ data:
     50% sand
     50% peat
 ```
+</details>
 
-## Updating, removing, backing up
+<details>
+<summary>Card options in YAML</summary>
 
-- **Update (HACS):** HACS shows an update when a new release is published; press *Update* and restart
-  Home Assistant. **Manual:** replace the `green_finger` folder and restart.
-- **Remove a plant:** the card's delete button, or *Settings > Devices & services > The Green
-  Finger*, the plant's cog > **Delete**.
-- **Remove the integration:** *Settings > Devices & services > The Green Finger > three-dot menu >
-  Delete*, then remove the folder (HACS: *Remove*).
-- **Backups:** plants are stored in Home Assistant's config entries (included in every normal
-  backup); downloaded species data is cached in `.storage/green_finger.species`. Pictures you upload
-  are stored by Home Assistant's image upload and are also in backups.
-
-## Own pictures and the camera
-
-In the add / edit form, **Choose file** picks an existing picture and **Take photo** takes one with the
-device camera.
-
-- **Over https** (for example your Nabu Casa address, or any `https://` address of your Home Assistant) the
-  card opens a live camera preview with *Capture* / *Cancel*.
-- **Over plain http** (for example `http://homeassistant.local:8123`) browsers do not allow camera access
-  to a web page. *Take photo* then hands over to the device's own picker: on Android that is usually the
-  photo chooser (many apps list the camera in it); the Companion app cannot be told to open the camera
-  directly. For the live camera, open Home Assistant through its https address.
-- The picture is stored by Home Assistant's `image_upload` integration (part of the default setup).
-
-## OpenPlantbook request limits
-
-OpenPlantbook answers *Too Many Requests* when an account makes too many calls, and it does not publish the
-numbers. Things to know:
-
-- The limit belongs to your **client ID**, so everything that uses the same credentials shares it: this
-  integration, the OpenPlantbook integration, and any automation or script that calls
-  `openplantbook.search` / `openplantbook.get` (and that integration's sensor-data upload).
-- This integration is economical: a search is one request, details are fetched only for the species you
-  choose, results are cached for ten minutes and species data is stored permanently. After a *Too Many
-  Requests* answer it sends nothing until the wait the API asked for is over.
-- If you hit the limit, wait a little (the message says how long) and try again. Species you already added
-  keep working; only searching and downloading new species data are affected.
-- To use fewer requests overall, avoid automations that search on every keystroke or refresh every species
-  at start-up, and consider switching off the sensor-data upload of the OpenPlantbook integration.
-
-## Troubleshooting
-
-| Problem | What to try |
-|---|---|
-| The card shows *Custom element doesn't exist* | Hard refresh the browser (`Ctrl+F5`); make sure the integration is set up and Home Assistant was restarted after installing |
-| Species search says *invalid authentication* | Re-copy the client ID and secret from <https://open.plantbook.io/apikey/show/>, then *Reconfigure* the integration |
-| Search finds nothing | Common names are looked up too, but OpenPlantbook may not list the plant; try the Latin name or fewer letters |
-| *Rate limiting* error | OpenPlantbook is limiting the account; wait for the time in the message. See [OpenPlantbook request limits](#openplantbook-request-limits) |
-| No picture upload on the card | Home Assistant's `image_upload` integration must be enabled (it is in `default_config`) |
-| A sensor cannot be chosen (greyed out) | It is already assigned to another plant; a soil sensor can belong to one plant only |
-| Temperature / battery missing | The moisture sensor's device must also have temperature / battery sensors that are enabled |
-| Plant reads *needs water* with a green timer | The assigned soil sensor reads dry or low - check the ideal moisture range |
-| Entity ID differs from the examples | IDs follow the plant name; check *Settings > Devices & services > Entities* |
-
-Useful logs: *Settings > System > Logs*, search for `green_finger`. Diagnostics can be downloaded
-from the integration page (credentials are redacted).
-
-## Privacy and data
-
-- OpenPlantbook receives only the search text and the species ID you look up, together with your
-  client ID.
-- When a search finds no Latin-name match, the search text is also sent to [GBIF](https://www.gbif.org)
-  (a public biodiversity database, no account needed) to translate a common name into plant genera.
-- Everything else (your plants, dates, schedules, sensors) stays in your Home Assistant.
-
-## Development
-
-```bash
-pip install -r requirements_test.txt   # needs Python 3.14 for current Home Assistant
-pytest
+```yaml
+type: custom:green-finger-card
+title: Plants
+size: compact        # large (default) or compact
+columns: 2           # a fixed number of columns; leave out for automatic
+min_width: 380       # automatic columns: the narrowest a plant may get, in px
+sort: urgency        # name (default) or urgency = needs water / feeding first
 ```
 
-`tests/test_logic.py` covers the pure schedule logic and runs on any Python 3. The integration tests
-in `tests/test_integration.py` need `pytest-homeassistant-custom-component`.
+```yaml
+type: custom:green-finger-plant-card
+entity: sensor.weeping_fig
+size: large          # or compact
+```
+</details>
 
-## Credits and data
+<details>
+<summary>Development</summary>
 
-Species data comes from [OpenPlantbook](https://open.plantbook.io) - please follow their terms and
-attribution rules. This project is not affiliated with OpenPlantbook.
+```bash
+pip install -r requirements_test.txt   # Python 3.14, as current Home Assistant needs
+pytest                                  # integration tests (Linux or macOS)
+cd tests/js && npm install && npm test  # card tests
+```
 
-## License
+`tests/test_logic.py` (schedule logic) runs on any Python 3. `docs/demo/index.html` shows the card with
+made-up plants, without Home Assistant (`?scene=list-large&theme=dark`; see the comment at the top of the file).
+</details>
+
+## Licence
 
 MIT

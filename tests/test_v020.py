@@ -289,3 +289,11 @@ async def test_species_waiting_to_be_written_is_flushed_when_the_entry_unloads(
         assert await hass.config_entries.async_unload(entry.entry_id)
     assert "ficus benjamina" in hass_storage["green_finger.species"]["data"]
     assert manager._dirty is False
+
+
+async def test_refreshing_straight_after_a_download_asks_again(hass: HomeAssistant) -> None:
+    client = _CountingClient({"pid": "ficus benjamina", "display_pid": "Ficus benjamina", "watering": "weekly"})
+    manager = await _manager(hass, client)  # the client answers at once, so the download finishes immediately
+    await manager.async_get_species("ficus benjamina")
+    await manager.async_get_species("ficus benjamina", refresh=True)
+    assert client.detail_calls == 2
