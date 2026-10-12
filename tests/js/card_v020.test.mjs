@@ -349,3 +349,24 @@ test('the header holds title, filters and the add button; the list sits outside 
   assert.equal(root.querySelector('#body #dlg'), null, 'the dialog must stay outside the container element');
   assert.equal(root.querySelectorAll('.tools > button').length, 3);
 });
+
+/* ---------------------------------------------------------------- safety */
+test('names, notes and places are shown as text, never as markup', () => {
+  const evil = '<img src=x onerror=alert(1)>';
+  const states = {
+    'sensor.x': plant('sensor.x', {
+      display_name: evil, plant_name: evil, notes: evil, location: evil, area: evil, species_name: evil,
+      sensor_name: evil, soil_notes: evil, fertiliser_name: evil, moisture_entity: 'sensor.s1', moisture: 40, battery: 50,
+    }),
+  };
+  const bad = (root) => root.querySelectorAll('img[src="x"], [onerror="alert(1)"]').length;
+  const large = setup(states);
+  assert.equal(bad(large.root), 0, 'list');
+  large.click(large.root.querySelector('.plant [data-a=info]'));
+  assert.equal(bad(large.root), 0, 'information window');
+  assert.ok(large.root.querySelector('.db').textContent.includes(evil), 'the text itself must still be shown');
+  large.el._openForm('edit', 'sensor.x');
+  assert.equal(bad(large.root), 0, 'form');
+  const compact = setup(states, { config: { size: 'compact' } });
+  assert.equal(bad(compact.root), 0, 'compact list');
+});
