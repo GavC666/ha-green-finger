@@ -228,6 +228,7 @@ async def test_the_summary_sensor_names_the_plants_that_need_care(hass: HomeAssi
     })
     await _setup(hass, entry)
     entity_id = _summary_entity_id(hass, entry)
+    assert entity_id == "sensor.the_green_finger_plants_needing_care"  # the README names it
     state = hass.states.get(entity_id)
     assert state.state == "2"
     assert state.attributes["needing_water"] == ["Fig"]

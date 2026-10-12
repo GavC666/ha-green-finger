@@ -39,7 +39,7 @@
       "step": {
         "user": {
           "title": "Find the species",
-          "description": "Search OpenPlantbook by Latin name (for example *monstera deliciosa*). Leave empty to enter the plant by hand.",
+          "description": "Type a plant name, for example *monstera* or *marigold*, and the matching species are listed. Leave it empty to enter the plant by hand.",
           "data": {
             "query": "Search"
           }

@@ -249,7 +249,6 @@ The sensor can be switched off like any other entity if you do not want it.
 | No temperature or battery shown | The soil sensor's device needs enabled temperature and battery sensors. |
 | *Needs water* but the timer looks fine | The soil sensor reads dry or low. Check the *Ideal ranges* of the plant. |
 | Take photo opens a photo chooser | Home Assistant is opened over `http://`. See [Good to know](#good-to-know). |
-| The size switch seems to do nothing after changing the card settings | Press the switch once more: it follows the card setting until you choose differently on that device. |
 
 For more detail: *Settings > System > Logs* (search for `green_finger`). The integration page also has a
 **Download diagnostics** entry; your key is removed from it.
