@@ -33,6 +33,7 @@ from .openplantbook import (
 
 _LOGGER = logging.getLogger(__name__)
 NONE_OF_THESE = "__none__"
+_SECTIONS = ("more", "ranges", "nutrition")
 
 _TEXT = selector.TextSelector()
 _MULTILINE = selector.TextSelector(selector.TextSelectorConfig(multiline=True))
@@ -212,9 +213,13 @@ class PlantSubentryFlow(ConfigSubentryFlow):
         mr = v.get("moisture_range") or [None, None]
         tr = v.get("temperature_range") or [None, None]
         npk = v.get("npk") or [None, None, None]
-        sensor = vol.Schema({
-            _suggest("moisture_entity", v.get("moisture_entity")): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="sensor", device_class="moisture")),
+        more = vol.Schema({
+            _suggest("location", v.get("location")): _TEXT,
+            _suggest("picture", v.get("picture")): _TEXT,
+            _suggest("species", v.get("species")): _TEXT,
+            _suggest("notes", v.get("notes")): _MULTILINE,
+        })
+        ranges = vol.Schema({
             _suggest("moisture_min", mr[0]): _percent("%"),
             _suggest("moisture_max", mr[1]): _percent("%"),
             _suggest("temperature_min", tr[0]): _percent("°C"),
@@ -231,30 +236,31 @@ class PlantSubentryFlow(ConfigSubentryFlow):
         return vol.Schema({
             _suggest("name", v.get("name"), required=True): _TEXT,
             _suggest("common_name", v.get("common_name")): common,
-            _suggest("species", v.get("species")): _TEXT,
             vol.Optional("inside", default=bool(v.get("inside", True))): selector.BooleanSelector(),
             _suggest("area", v.get("area")): selector.AreaSelector(),
-            _suggest("location", v.get("location")): _TEXT,
-            _suggest("picture", v.get("picture")): _TEXT,
+            _suggest("moisture_entity", v.get("moisture_entity")): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="sensor", device_class="moisture")),
+            vol.Optional("auto_watered", default=bool(v.get("auto_watered"))): selector.BooleanSelector(),
             _suggest("last_watered", v.get("last_watered")): selector.DateSelector(),
             _suggest("last_fertilised", v.get("last_fertilised")): selector.DateSelector(),
-            vol.Required("sensor"): section(sensor, {"collapsed": False}),
+            vol.Required("more"): section(more, {"collapsed": True}),
+            vol.Required("ranges"): section(ranges, {"collapsed": True}),
             vol.Required("nutrition"): section(nutrition, {"collapsed": True}),
-            _suggest("notes", v.get("notes")): _MULTILINE,
         })
 
     async def async_step_plant(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         errors: dict[str, str] = {}
         placeholders = {"line": "", "plant": ""}
         if user_input is not None:
-            flat = {k: val for k, val in user_input.items() if k not in ("sensor", "nutrition")}
-            flat.update(user_input.get("sensor") or {})
-            flat.update(user_input.get("nutrition") or {})
+            flat = {k: val for k, val in user_input.items() if k not in _SECTIONS}
+            for name in _SECTIONS:
+                flat.update(user_input.get(name) or {})
             for k in ("name", "common_name", "species", "area", "location", "picture", "moisture_entity",
                       "fertiliser_name", "soil_notes", "notes", "last_watered", "last_fertilised"):
                 if k in flat or k in ("moisture_entity", "common_name", "area"):
                     self._values[k] = flat.get(k)
             self._values["inside"] = bool(flat.get("inside", True))
+            self._values["auto_watered"] = bool(flat.get("auto_watered"))
             lo, hi = flat.get("moisture_min"), flat.get("moisture_max")
             self._values["moisture_range"] = [lo, hi] if lo is not None and hi is not None else None
             lo, hi = flat.get("temperature_min"), flat.get("temperature_max")
@@ -311,11 +317,16 @@ class PlantSubentryFlow(ConfigSubentryFlow):
     @callback
     def _finish(self) -> SubentryFlowResult:
         values = {k: v for k, v in self._values.items() if k not in ("water_text", "feed_text")}
-        data = clean_plant_data(values)
+        cleaned = clean_plant_data(values)
+        if self._reconfigure:
+            entry, sub = self._get_entry(), self._get_reconfigure_subentry()
+            # keep what the form does not edit (for example a postponed watering)
+            data = {**dict(sub.data), **cleaned}
+        else:
+            data = cleaned
         data = {k: v for k, v in data.items() if v is not None or k == "species"}
         title = data.get("common_name") or data.get("name") or "Plant"
         if self._reconfigure:
-            entry, sub = self._get_entry(), self._get_reconfigure_subentry()
             self.manager.apply_area(sub.subentry_id, data.get("area"))
             return self.async_update_and_abort(entry, sub, title=title, data=data)
         return self.async_create_entry(title=title, data=data)

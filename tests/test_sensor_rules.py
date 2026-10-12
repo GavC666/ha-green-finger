@@ -70,7 +70,7 @@ async def test_subentry_form_reports_a_sensor_in_use(hass: HomeAssistant) -> Non
     assert result["step_id"] == "plant"
     result = await hass.config_entries.subentries.async_configure(
         result["flow_id"],
-        {"name": "Cactus", "inside": True, "sensor": {"moisture_entity": "sensor.soil_1"}, "nutrition": {}},
+        {"name": "Cactus", "inside": True, "moisture_entity": "sensor.soil_1", "more": {}, "ranges": {}, "nutrition": {}},
     )
     assert result["type"] == "form"
     assert result["step_id"] == "plant"

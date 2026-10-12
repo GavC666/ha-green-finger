@@ -53,44 +53,55 @@
         },
         "plant": {
           "title": "Plant details",
-          "description": "Everything here can be changed later.",
+          "description": "The essentials are here; open the sections below for more. Everything can be changed later.",
           "data": {
             "name": "Name",
-            "common_name": "Common name shown on the card",
-            "species": "OpenPlantbook species ID",
+            "common_name": "Common name shown",
             "inside": "Grown inside",
             "area": "Room",
-            "location": "Spot in the room",
-            "picture": "Picture URL (leave empty to use the species picture)",
+            "moisture_entity": "Soil moisture sensor",
+            "auto_watered": "Mark as watered automatically",
             "last_watered": "Last watered",
-            "last_fertilised": "Last fertilised",
-            "notes": "Notes"
+            "last_fertilised": "Last fertilised"
           },
           "data_description": {
-            "picture": "Upload your own picture on the card, or paste a URL or a path such as /local/plant.jpg.",
-            "location": "Free text, for example \"south window sill\"."
+            "moisture_entity": "Optional. Shows live moisture, temperature and battery on the card.",
+            "auto_watered": "When the soil suddenly gets much wetter, the plant is marked as watered today."
           },
           "sections": {
-            "sensor": {
-              "name": "Sensor and ideal ranges",
-              "description": "Assign a soil moisture sensor to show live readings. The ranges drive the green zones of the gauges.",
+            "more": {
+              "name": "More details",
+              "description": "Spot in the room, your own picture, species and notes.",
               "data": {
-                "moisture_entity": "Soil moisture sensor",
-                "moisture_min": "Ideal moisture minimum",
-                "moisture_max": "Ideal moisture maximum",
-                "temperature_min": "Ideal temperature minimum",
-                "temperature_max": "Ideal temperature maximum"
+                "location": "Spot in the room",
+                "picture": "Picture address",
+                "species": "OpenPlantbook species ID",
+                "notes": "Notes"
+              },
+              "data_description": {
+                "location": "For example: south window sill.",
+                "picture": "Leave empty to use the species picture. Upload your own on the card, or paste an address."
+              }
+            },
+            "ranges": {
+              "name": "Ideal ranges",
+              "description": "Drive the green zone of the gauges and the dry / wet warnings.",
+              "data": {
+                "moisture_min": "Soil moisture minimum",
+                "moisture_max": "Soil moisture maximum",
+                "temperature_min": "Temperature minimum",
+                "temperature_max": "Temperature maximum"
               }
             },
             "nutrition": {
-              "name": "Fertiliser and soil mix",
+              "name": "Fertiliser and soil",
               "description": "The ideal N-P-K ratio and the soil mix this plant lives in.",
               "data": {
                 "npk_n": "Nitrogen (N)",
                 "npk_p": "Phosphorus (P)",
                 "npk_k": "Potassium (K)",
                 "fertiliser_name": "Fertiliser product",
-                "soil_mix": "Soil mix (one component per line, for example 30% perlite)",
+                "soil_mix": "Soil mix (one per line, e.g. 30% perlite)",
                 "soil_notes": "Soil notes"
               }
             }
@@ -203,50 +214,172 @@
       "name": "Add plant",
       "description": "Create a plant. Schedules default from the species when one is given.",
       "fields": {
-        "name": {"name": "Name", "description": "Name of the plant."},
-        "common_name": {"name": "Common name", "description": "Name shown on the card."},
-        "species": {"name": "Species ID", "description": "OpenPlantbook plant ID."},
-        "inside": {"name": "Inside", "description": "Whether the plant lives indoors."},
-        "location": {"name": "Location", "description": "Spot in the room."},
-        "area": {"name": "Area", "description": "Home Assistant area ID."},
-        "picture": {"name": "Picture", "description": "Picture URL or path."},
-        "last_watered": {"name": "Last watered", "description": "Date."},
-        "last_fertilised": {"name": "Last fertilised", "description": "Date."},
-        "water": {"name": "Watering periods", "description": "List of [start_month, start_day, end_month, end_day, days] or text lines such as 1 Mar - 30 Nov: every 10 days."},
-        "feed": {"name": "Feeding periods", "description": "Same format as watering periods."},
-        "moisture_entity": {"name": "Moisture sensor", "description": "Soil moisture sensor entity."},
-        "moisture_range": {"name": "Ideal moisture", "description": "[min, max] in percent."},
-        "temperature_range": {"name": "Ideal temperature", "description": "[min, max] in degrees Celsius."},
-        "npk": {"name": "N-P-K", "description": "[N, P, K] numbers of the ideal fertiliser."},
-        "fertiliser_name": {"name": "Fertiliser", "description": "Product name."},
-        "soil_mix": {"name": "Soil mix", "description": "Text lines such as 30% perlite, or a list of name and percent pairs."},
-        "soil_notes": {"name": "Soil notes", "description": "Free text."},
-        "notes": {"name": "Notes", "description": "Free text."}
+        "name": {
+          "name": "Name",
+          "description": "Name of the plant."
+        },
+        "common_name": {
+          "name": "Common name",
+          "description": "Name shown on the card."
+        },
+        "species": {
+          "name": "Species ID",
+          "description": "OpenPlantbook plant ID."
+        },
+        "inside": {
+          "name": "Inside",
+          "description": "Whether the plant lives indoors."
+        },
+        "location": {
+          "name": "Location",
+          "description": "Spot in the room."
+        },
+        "area": {
+          "name": "Area",
+          "description": "Home Assistant area ID."
+        },
+        "picture": {
+          "name": "Picture",
+          "description": "Picture URL or path."
+        },
+        "last_watered": {
+          "name": "Last watered",
+          "description": "Date."
+        },
+        "last_fertilised": {
+          "name": "Last fertilised",
+          "description": "Date."
+        },
+        "water": {
+          "name": "Watering periods",
+          "description": "List of [start_month, start_day, end_month, end_day, days] or text lines such as 1 Mar - 30 Nov: every 10 days."
+        },
+        "feed": {
+          "name": "Feeding periods",
+          "description": "Same format as watering periods."
+        },
+        "moisture_entity": {
+          "name": "Moisture sensor",
+          "description": "Soil moisture sensor entity."
+        },
+        "moisture_range": {
+          "name": "Ideal moisture",
+          "description": "[min, max] in percent."
+        },
+        "temperature_range": {
+          "name": "Ideal temperature",
+          "description": "[min, max] in degrees Celsius."
+        },
+        "npk": {
+          "name": "N-P-K",
+          "description": "[N, P, K] numbers of the ideal fertiliser."
+        },
+        "fertiliser_name": {
+          "name": "Fertiliser",
+          "description": "Product name."
+        },
+        "soil_mix": {
+          "name": "Soil mix",
+          "description": "Text lines such as 30% perlite, or a list of name and percent pairs."
+        },
+        "soil_notes": {
+          "name": "Soil notes",
+          "description": "Free text."
+        },
+        "notes": {
+          "name": "Notes",
+          "description": "Free text."
+        },
+        "auto_watered": {
+          "name": "Mark as watered automatically",
+          "description": "Record a watering when the soil sensor jumps up."
+        }
       }
     },
     "update_plant": {
       "name": "Update plant",
       "description": "Change any detail of a plant. Only the fields you send are changed.",
       "fields": {
-        "name": {"name": "Name", "description": "Name of the plant."},
-        "common_name": {"name": "Common name", "description": "Name shown on the card."},
-        "species": {"name": "Species ID", "description": "OpenPlantbook plant ID."},
-        "inside": {"name": "Inside", "description": "Whether the plant lives indoors."},
-        "location": {"name": "Location", "description": "Spot in the room."},
-        "area": {"name": "Area", "description": "Home Assistant area ID."},
-        "picture": {"name": "Picture", "description": "Picture URL or path."},
-        "last_watered": {"name": "Last watered", "description": "Date."},
-        "last_fertilised": {"name": "Last fertilised", "description": "Date."},
-        "water": {"name": "Watering periods", "description": "List of [start_month, start_day, end_month, end_day, days] or text lines."},
-        "feed": {"name": "Feeding periods", "description": "Same format as watering periods."},
-        "moisture_entity": {"name": "Moisture sensor", "description": "Soil moisture sensor entity."},
-        "moisture_range": {"name": "Ideal moisture", "description": "[min, max] in percent."},
-        "temperature_range": {"name": "Ideal temperature", "description": "[min, max] in degrees Celsius."},
-        "npk": {"name": "N-P-K", "description": "[N, P, K] numbers of the ideal fertiliser."},
-        "fertiliser_name": {"name": "Fertiliser", "description": "Product name."},
-        "soil_mix": {"name": "Soil mix", "description": "Text lines such as 30% perlite, or a list of name and percent pairs."},
-        "soil_notes": {"name": "Soil notes", "description": "Free text."},
-        "notes": {"name": "Notes", "description": "Free text."}
+        "name": {
+          "name": "Name",
+          "description": "Name of the plant."
+        },
+        "common_name": {
+          "name": "Common name",
+          "description": "Name shown on the card."
+        },
+        "species": {
+          "name": "Species ID",
+          "description": "OpenPlantbook plant ID."
+        },
+        "inside": {
+          "name": "Inside",
+          "description": "Whether the plant lives indoors."
+        },
+        "location": {
+          "name": "Location",
+          "description": "Spot in the room."
+        },
+        "area": {
+          "name": "Area",
+          "description": "Home Assistant area ID."
+        },
+        "picture": {
+          "name": "Picture",
+          "description": "Picture URL or path."
+        },
+        "last_watered": {
+          "name": "Last watered",
+          "description": "Date."
+        },
+        "last_fertilised": {
+          "name": "Last fertilised",
+          "description": "Date."
+        },
+        "water": {
+          "name": "Watering periods",
+          "description": "List of [start_month, start_day, end_month, end_day, days] or text lines."
+        },
+        "feed": {
+          "name": "Feeding periods",
+          "description": "Same format as watering periods."
+        },
+        "moisture_entity": {
+          "name": "Moisture sensor",
+          "description": "Soil moisture sensor entity."
+        },
+        "moisture_range": {
+          "name": "Ideal moisture",
+          "description": "[min, max] in percent."
+        },
+        "temperature_range": {
+          "name": "Ideal temperature",
+          "description": "[min, max] in degrees Celsius."
+        },
+        "npk": {
+          "name": "N-P-K",
+          "description": "[N, P, K] numbers of the ideal fertiliser."
+        },
+        "fertiliser_name": {
+          "name": "Fertiliser",
+          "description": "Product name."
+        },
+        "soil_mix": {
+          "name": "Soil mix",
+          "description": "Text lines such as 30% perlite, or a list of name and percent pairs."
+        },
+        "soil_notes": {
+          "name": "Soil notes",
+          "description": "Free text."
+        },
+        "notes": {
+          "name": "Notes",
+          "description": "Free text."
+        },
+        "auto_watered": {
+          "name": "Mark as watered automatically",
+          "description": "Record a watering when the soil sensor jumps up."
+        }
       }
     },
     "remove_plant": {
@@ -257,21 +390,44 @@
       "name": "Water",
       "description": "Record that a plant was watered.",
       "fields": {
-        "date": {"name": "Date", "description": "Defaults to today."}
+        "date": {
+          "name": "Date",
+          "description": "Defaults to today."
+        }
       }
     },
     "fertilise": {
       "name": "Fertilise",
       "description": "Record that a plant was fertilised.",
       "fields": {
-        "date": {"name": "Date", "description": "Defaults to today."}
+        "date": {
+          "name": "Date",
+          "description": "Defaults to today."
+        }
       }
     },
     "refresh_species": {
       "name": "Refresh species data",
       "description": "Download the species record again from OpenPlantbook.",
       "fields": {
-        "plant_id": {"name": "Plant ID", "description": "Subentry ID of one plant; leave empty for all."}
+        "plant_id": {
+          "name": "Plant ID",
+          "description": "Subentry ID of one plant; leave empty for all."
+        }
+      }
+    },
+    "postpone": {
+      "name": "Postpone",
+      "description": "Move the next watering or feeding back by a number of days (they add up until it is recorded).",
+      "fields": {
+        "kind": {
+          "name": "What",
+          "description": "water or feed."
+        },
+        "days": {
+          "name": "Days",
+          "description": "How many days to add (1-90)."
+        }
       }
     }
   }

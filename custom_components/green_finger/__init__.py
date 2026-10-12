@@ -11,9 +11,9 @@ from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
+from homeassistant.core import Event, HomeAssistant, ServiceCall, SupportsResponse, callback
 from homeassistant.exceptions import ServiceValidationError
-from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import config_validation as cv, device_registry as dr, entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.loader import async_get_integration
@@ -141,10 +141,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreenFingerConfigEntry) 
     await manager.async_load()
     manager.known_subentries = set(entry.subentries)
     manager.known_data = dict(entry.data)
+    manager.async_refresh_changed()  # take the first snapshot
     entry.runtime_data = manager
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+
+    @callback
+    def _entity_registry_updated(event: Event) -> None:
+        entity_id = event.data.get("entity_id")
+        for ent in list(manager.entities.values()):
+            ent.registry_changed(entity_id=entity_id)
+
+    @callback
+    def _device_registry_updated(event: Event) -> None:
+        device_id = event.data.get("device_id")
+        for ent in list(manager.entities.values()):
+            ent.registry_changed(device_id=device_id)
+
+    entry.async_on_unload(hass.bus.async_listen(er.EVENT_ENTITY_REGISTRY_UPDATED, _entity_registry_updated))
+    entry.async_on_unload(hass.bus.async_listen(dr.EVENT_DEVICE_REGISTRY_UPDATED, _device_registry_updated))
     if client is not None:
         entry.async_create_background_task(hass, manager.async_fill_missing_species(), "green_finger_species")
     return True
@@ -156,7 +172,7 @@ async def _async_update_listener(hass: HomeAssistant, entry: GreenFingerConfigEn
     if set(entry.subentries) != manager.known_subentries or dict(entry.data) != manager.known_data:
         hass.config_entries.async_schedule_reload(entry.entry_id)
         return
-    manager.async_refresh_all()
+    manager.async_refresh_changed()
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: GreenFingerConfigEntry) -> bool:

@@ -124,7 +124,8 @@ async def test_plant_subentry_flow_manual(hass: HomeAssistant) -> None:
         result["flow_id"],
         {
             "name": "Aloe", "inside": True, "last_watered": "2026-10-01", "last_fertilised": "2026-10-01",
-            "sensor": {}, "nutrition": {"npk_n": 5, "npk_p": 5, "npk_k": 5, "soil_mix": "50% sand\n50% peat"},
+            "more": {}, "ranges": {},
+            "nutrition": {"npk_n": 5, "npk_p": 5, "npk_k": 5, "soil_mix": "50% sand\n50% peat"},
         },
     )
     assert result["step_id"] == "schedule"
@@ -190,7 +191,7 @@ async def test_plant_subentry_flow_with_species_search(hass: HomeAssistant) -> N
         assert result["step_id"] == "plant"
         result = await hass.config_entries.subentries.async_configure(
             result["flow_id"],
-            {"name": "Hallway Fig", "inside": True, "sensor": {}, "nutrition": {}},
+            {"name": "Hallway Fig", "inside": True, "more": {}, "ranges": {}, "nutrition": {}},
         )
         assert result["step_id"] == "schedule"
         result = await hass.config_entries.subentries.async_configure(

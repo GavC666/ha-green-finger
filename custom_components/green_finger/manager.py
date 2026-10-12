@@ -1,6 +1,7 @@
 """Data manager for The Green Finger: plants (config subentries), species cache, services logic."""
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from types import MappingProxyType
@@ -32,6 +33,13 @@ SPECIES_KEEP = (
 SEARCH_RESULT_LIMIT = 12
 SEARCH_GENERA = 3
 SEARCH_CACHE_SECONDS = 600
+SEARCH_CACHE_MAX = 40
+UNKNOWN_SPECIES_SECONDS = 6 * 3600
+
+
+def species_is_saved(record: dict[str, Any] | None) -> bool:
+    """True when the OpenPlantbook record was downloaded completely (so it is never requested again)."""
+    return bool(record) and ("fetched_at" in record or record.get("watering") is not None)
 
 
 def _invalid(key: str, **placeholders: str) -> ServiceValidationError:
@@ -109,6 +117,8 @@ def clean_plant_data(data: dict[str, Any]) -> dict[str, Any]:
         raise _invalid("name_required")
     if "inside" in data:
         out["inside"] = bool(data["inside"])
+    if "auto_watered" in data:
+        out["auto_watered"] = bool(data["auto_watered"])
     for key in ("last_watered", "last_fertilised"):
         if key in data:
             d = clean_date(data[key])
@@ -140,7 +150,10 @@ class GreenFingerManager:
         self.entities: dict[str, Any] = {}
         self.known_subentries: set[str] = set()
         self.known_data: dict[str, Any] = {}
+        self._snapshots: dict[str, dict[str, Any]] = {}
         self._search_cache: dict[str, tuple[float, dict[str, Any]]] = {}
+        self._inflight: dict[str, asyncio.Task] = {}
+        self._unknown: dict[str, float] = {}  # species OpenPlantbook does not know (time of the "not found")
 
     # ---------------------------------------------------------------- basics
     @property
@@ -162,6 +175,19 @@ class GreenFingerManager:
     def async_refresh_all(self) -> None:
         for ent in list(self.entities.values()):
             ent.refresh()
+
+    @callback
+    def async_refresh_changed(self) -> None:
+        """Refresh only the plants whose stored data changed since the last call."""
+        current = {
+            sid: dict(sub.data) for sid, sub in self.entry.subentries.items() if sub.subentry_type == SUBENTRY_PLANT
+        }
+        for sid, data in current.items():
+            if self._snapshots.get(sid) != data:
+                ent = self.entities.get(sid)
+                if ent is not None:
+                    ent.refresh()
+        self._snapshots = current
 
     def plant(self, subentry_id: str) -> dict[str, Any] | None:
         sub = self.entry.subentries.get(subentry_id)
@@ -190,19 +216,37 @@ class GreenFingerManager:
         if not pid:
             return None
         cached = self.species.get(pid)
-        if cached and not refresh and cached.get("watering") is not None:
+        if cached and not refresh and species_is_saved(cached):
             return cached
         if self.client is None:
             return cached
+        missing_at = self._unknown.get(pid)
+        if missing_at is not None and not refresh and time.monotonic() - missing_at < UNKNOWN_SPECIES_SECONDS:
+            return cached  # asked recently and OpenPlantbook does not have it: do not ask again
+        running = self._inflight.get(pid)
+        if running is not None:  # the same species is already being downloaded: share that request
+            return await asyncio.shield(running)
+        task = self.hass.async_create_task(self._download_species(pid, cached))
+        self._inflight[pid] = task
+        try:
+            return await task
+        finally:
+            self._inflight.pop(pid, None)
+
+    async def _download_species(self, pid: str, cached: dict[str, Any] | None) -> dict[str, Any] | None:
+        assert self.client is not None
         try:
             raw = await self.client.async_detail(pid)
         except OpenPlantbookError as err:
             _LOGGER.warning("OpenPlantbook lookup of %s failed: %s", pid, err)
             return cached
         if not raw:
+            self._unknown[pid] = time.monotonic()
             return cached
+        self._unknown.pop(pid, None)
         data = {k: raw[k] for k in SPECIES_KEEP if k in raw}
         data.setdefault("pid", pid)
+        data["fetched_at"] = dt_util.now().date().isoformat()
         self.species[data["pid"]] = data
         if data["pid"] != pid:
             self.species[pid] = data
@@ -266,6 +310,8 @@ class GreenFingerManager:
             elif genera:
                 note = f"The common name matches the genus {', '.join(genera)}, which OpenPlantbook does not list."
         result = {"results": rows[:SEARCH_RESULT_LIMIT], "note": note}
+        if len(self._search_cache) >= SEARCH_CACHE_MAX:
+            self._search_cache.pop(next(iter(self._search_cache)))
         self._search_cache[key] = (time.monotonic(), result)
         return result
 
@@ -300,6 +346,7 @@ class GreenFingerManager:
         if not str(data.get("name") or "").strip():
             raise _invalid("name_required")
         plant = self.default_plant()
+        self.check_sensor_free(str(data.get("moisture_entity") or "").strip() or None)
         pid = str(data.get("species") or "").strip().lower()
         if pid:
             sp = await self.async_get_species(pid)
@@ -308,7 +355,6 @@ class GreenFingerManager:
             plant["water"] = sug["water"] or plant["water"]
             plant["feed"] = sug["feed"] or plant["feed"]
         plant.update(clean_plant_data({k: v for k, v in data.items() if k != "species"}))
-        self.check_sensor_free(plant.get("moisture_entity"))
         plant = {k: v for k, v in plant.items() if v is not None or k in ("species",)}
         title = plant.get("common_name") or plant["name"]
         sub = ConfigSubentry(data=MappingProxyType(plant), subentry_type=SUBENTRY_PLANT, title=title, unique_id=None)
@@ -348,7 +394,17 @@ class GreenFingerManager:
         sub = self._subentry(subentry_id)
         d = clean_date(when) or dt_util.now().date().isoformat()
         key = "last_watered" if kind == "water" else "last_fertilised"
-        self.hass.config_entries.async_update_subentry(self.entry, sub, data={**dict(sub.data), key: d})
+        data = {**dict(sub.data), key: d}
+        data.pop("postpone_water" if kind == "water" else "postpone_feed", None)
+        self.hass.config_entries.async_update_subentry(self.entry, sub, data=data)
+
+    @callback
+    def async_postpone(self, subentry_id: str, kind: str, days: int) -> None:
+        """Push the next watering / feeding back by ``days`` (added up until it is recorded)."""
+        sub = self._subentry(subentry_id)
+        key = "postpone_water" if kind == "water" else "postpone_feed"
+        total = max(0, min(int(sub.data.get(key) or 0) + int(days), 90))
+        self.hass.config_entries.async_update_subentry(self.entry, sub, data={**dict(sub.data), key: total})
 
     async def async_fill_missing_species(self) -> None:
         """Download the species record of every plant that has none cached yet."""
@@ -356,7 +412,7 @@ class GreenFingerManager:
             return
         for sub in list(self.entry.subentries.values()):
             pid = str(sub.data.get("species") or "").strip().lower()
-            if pid and (self.species.get(pid) or {}).get("watering") is None:
+            if pid and not species_is_saved(self.species.get(pid)):
                 try:
                     await self.async_get_species(pid)
                 except Exception:  # noqa: BLE001 - a background download must never raise

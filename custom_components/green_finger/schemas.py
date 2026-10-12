@@ -18,6 +18,7 @@ UPDATE_SCHEMA = {
     vol.Optional("water"): vol.Any(str, list),
     vol.Optional("feed"): vol.Any(str, list),
     vol.Optional("moisture_entity"): vol.Any(None, cv.string),
+    vol.Optional("auto_watered"): cv.boolean,
     vol.Optional("moisture_range"): vol.Any(None, list),
     vol.Optional("temperature_range"): vol.Any(None, list),
     vol.Optional("npk"): vol.Any(None, list),

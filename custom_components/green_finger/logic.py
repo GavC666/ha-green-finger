@@ -330,8 +330,11 @@ def compute(plant: dict[str, Any], species: dict[str, Any] | None, readings: dic
 
     w_int = period_days(water, today)
     f_int = period_days(feed, today)
-    w_left = (w_int - (today - lw).days) if (lw and w_int > 0) else None
-    f_left = (f_int - (today - lf).days) if (lf and f_int > 0) else None
+    # "postpone" adds days to the due date until the next watering / feeding is recorded
+    w_extra = max(0, int(to_float(plant.get("postpone_water")) or 0))
+    f_extra = max(0, int(to_float(plant.get("postpone_feed")) or 0))
+    w_left = (w_int + w_extra - (today - lw).days) if (lw and w_int > 0) else None
+    f_left = (f_int + f_extra - (today - lf).days) if (lf and f_int > 0) else None
 
     def status(left: int | None, interval: int) -> str:
         if interval <= 0:
@@ -366,15 +369,10 @@ def compute(plant: dict[str, Any], species: dict[str, Any] | None, readings: dic
     state = "needs_both" if needs_water and needs_feed else (
         "needs_water" if needs_water else ("needs_feed" if needs_feed else "ok"))
 
-    def nxt(last: date | None, interval: int) -> str | None:
+    def nxt(last: date | None, interval: int, extra: int) -> str | None:
         if not last or interval <= 0:
             return None
-        return (last + timedelta(days=interval)).isoformat()
-
-    care = {k: sp.get(k) for k in (
-        "watering", "fertilization", "sunlight", "soil", "pruning", "origin", "category",
-        "min_light_lux", "max_light_lux", "min_env_humid", "max_env_humid", "min_soil_ec", "max_soil_ec",
-    ) if sp.get(k) not in (None, "")}
+        return (last + timedelta(days=interval + extra)).isoformat()
 
     npk = plant.get("npk")
     if not npk:
@@ -383,6 +381,7 @@ def compute(plant: dict[str, Any], species: dict[str, Any] | None, readings: dic
 
     attrs = {
         "green_finger": True,
+        "plant_id": plant.get("id"),
         "plant_name": plant.get("name"),
         "common_name": plant.get("common_name") or None,
         "display_name": plant.get("common_name") or plant.get("name"),
@@ -409,8 +408,11 @@ def compute(plant: dict[str, Any], species: dict[str, Any] | None, readings: dic
         "feed_days_left": f_left,
         "water_status": w_status,
         "feed_status": f_status,
-        "next_water": nxt(lw, w_int),
-        "next_feed": nxt(lf, f_int),
+        "next_water": nxt(lw, w_int, w_extra),
+        "next_feed": nxt(lf, f_int, f_extra),
+        "water_postponed_days": w_extra,
+        "feed_postponed_days": f_extra,
+        "auto_watered": bool(plant.get("auto_watered")),
         "water_period": period_label(water, today),
         "feed_period": period_label(feed, today),
         "water_schedule": water,
@@ -424,7 +426,6 @@ def compute(plant: dict[str, Any], species: dict[str, Any] | None, readings: dic
         "temperature_status": t_status,
         "ideal_moisture": [m_lo, m_hi],
         "ideal_temperature": [t_lo, t_hi],
-        "care": care,
         "notes": plant.get("notes") or None,
     }
     return {"state": state, "attributes": attrs}
