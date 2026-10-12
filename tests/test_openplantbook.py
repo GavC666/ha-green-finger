@@ -20,7 +20,7 @@ class _Response:
     def raise_for_status(self) -> None:
         return None
 
-    async def __aenter__(self) -> "_Response":
+    async def __aenter__(self) -> _Response:
         return self
 
     async def __aexit__(self, *exc: Any) -> None:
@@ -71,3 +71,26 @@ async def test_a_429_without_retry_after_uses_a_default() -> None:
     with pytest.raises(OpenPlantbookRateLimit) as err:
         await client.async_detail("ficus benjamina")
     assert err.value.retry_after == 60
+
+
+class _BrokenJson(_Response):
+    async def json(self, content_type: Any = None) -> Any:
+        raise ValueError("not json")
+
+
+async def test_an_answer_that_is_not_json_is_a_readable_error() -> None:
+    from custom_components.green_finger.openplantbook import OpenPlantbookError
+
+    session = _Session([_BrokenJson(200)])
+    client = OpenPlantbookClient(session, "id", "secret")  # type: ignore[arg-type]
+    with pytest.raises(OpenPlantbookError):
+        await client.async_detail("ficus benjamina")
+
+
+async def test_forbidden_counts_as_a_rejected_login() -> None:
+    from custom_components.green_finger.openplantbook import OpenPlantbookAuthError
+
+    session = _Session([_Response(403)])
+    client = OpenPlantbookClient(session, "id", "secret")  # type: ignore[arg-type]
+    with pytest.raises(OpenPlantbookAuthError):
+        await client.async_search("ficus")

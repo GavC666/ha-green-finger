@@ -30,7 +30,9 @@ def _entry(plants: dict[str, dict] | None = None) -> MockConfigEntry:
         domain=DOMAIN,
         data={},
         subentries_data=[
-            ConfigSubentryData(data=data, subentry_type=SUBENTRY_PLANT, title=data["name"], unique_id=None, subentry_id=sid)
+            ConfigSubentryData(
+                data=data, subentry_type=SUBENTRY_PLANT, title=data["name"], unique_id=None, subentry_id=sid,
+            )
             for sid, data in plants.items()
         ],
     )
@@ -88,11 +90,13 @@ async def test_add_and_remove_plant_services(hass: HomeAssistant) -> None:
 
 async def test_search_requires_credentials(hass: HomeAssistant) -> None:
     await _setup(hass, _entry())
-    from homeassistant.exceptions import ServiceValidationError
     import pytest
+    from homeassistant.exceptions import ServiceValidationError
 
     with pytest.raises(ServiceValidationError):
-        await hass.services.async_call(DOMAIN, "search_species", {"query": "ficus"}, blocking=True, return_response=True)
+        await hass.services.async_call(
+            DOMAIN, "search_species", {"query": "ficus"}, blocking=True, return_response=True,
+        )
 
 
 async def test_config_flow_without_credentials(hass: HomeAssistant) -> None:
@@ -118,7 +122,9 @@ async def test_config_flow_rejects_bad_credentials(hass: HomeAssistant) -> None:
 async def test_plant_subentry_flow_manual(hass: HomeAssistant) -> None:
     entry = _entry({})
     await _setup(hass, entry)
-    result = await hass.config_entries.subentries.async_init((entry.entry_id, SUBENTRY_PLANT), context={"source": "user"})
+    result = await hass.config_entries.subentries.async_init(
+        (entry.entry_id, SUBENTRY_PLANT), context={"source": "user"},
+    )
     assert result["step_id"] == "plant"  # no credentials: straight to the details
     result = await hass.config_entries.subentries.async_configure(
         result["flow_id"],

@@ -316,6 +316,19 @@ def english_names(species: dict[str, Any] | None, language: str = "en") -> list[
     return names
 
 
+# every attribute a plant sensor carries (kept in step with compute() by a test; none of them goes to the recorder)
+ATTRIBUTE_NAMES = (
+    "green_finger", "plant_id", "plant_name", "common_name", "display_name", "species", "species_name",
+    "species_alias", "species_saved_on", "common_names", "picture", "species_picture", "user_picture", "area",
+    "location", "fertiliser_npk", "fertiliser_npk_label", "fertiliser_name", "soil_mix", "soil_notes", "inside",
+    "last_watered", "last_fertilised", "water_interval", "feed_interval", "water_days_left", "feed_days_left",
+    "water_status", "feed_status", "next_water", "next_feed", "water_postponed_days", "feed_postponed_days",
+    "auto_watered", "water_period", "feed_period", "water_schedule", "feed_schedule", "moisture_entity",
+    "moisture", "temperature", "battery", "sensor_name", "moisture_status", "temperature_status",
+    "ideal_moisture", "ideal_temperature", "notes",
+)
+
+
 def compute(plant: dict[str, Any], species: dict[str, Any] | None, readings: dict[str, Any],
             today: date, language: str = "en", area: str | None = None) -> dict[str, Any]:
     """Derive the state and attributes of one plant.
@@ -388,6 +401,7 @@ def compute(plant: dict[str, Any], species: dict[str, Any] | None, readings: dic
         "species": plant.get("species") or None,
         "species_name": sp.get("display_pid") or plant.get("species") or None,
         "species_alias": sp.get("alias") or None,
+        "species_saved_on": sp.get("fetched_at") or None,
         "common_names": english_names(sp, language),
         "picture": plant.get("picture") or sp.get("image_url") or None,
         "species_picture": sp.get("image_url") or None,

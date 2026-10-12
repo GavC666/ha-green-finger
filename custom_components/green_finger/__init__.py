@@ -6,15 +6,17 @@ from pathlib import Path
 from typing import Any
 
 import voluptuous as vol
-
 from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import Event, HomeAssistant, ServiceCall, SupportsResponse, callback
 from homeassistant.exceptions import ServiceValidationError
-from homeassistant.helpers import config_validation as cv, device_registry as dr, entity_registry as er
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.loader import async_get_integration
 
@@ -42,6 +44,23 @@ def _manager(hass: HomeAssistant) -> GreenFingerManager:
         if getattr(entry, "runtime_data", None) is not None:
             return entry.runtime_data
     raise ServiceValidationError(translation_domain=DOMAIN, translation_key="not_loaded")
+
+
+def _lookup_error(err: OpenPlantbookError) -> ServiceValidationError:
+    """The readable service error for a failed OpenPlantbook request."""
+    if isinstance(err, OpenPlantbookRateLimit):
+        return ServiceValidationError(
+            translation_domain=DOMAIN, translation_key="rate_limited",
+            translation_placeholders={"seconds": str(err.retry_after)},
+        )
+    if isinstance(err, OpenPlantbookAuthError):
+        return ServiceValidationError(translation_domain=DOMAIN, translation_key="invalid_auth")
+    if isinstance(err, OpenPlantbookConnectionError):
+        return ServiceValidationError(translation_domain=DOMAIN, translation_key="cannot_connect")
+    return ServiceValidationError(
+        translation_domain=DOMAIN, translation_key="lookup_failed",
+        translation_placeholders={"error": str(err) or type(err).__name__},
+    )
 
 
 async def _async_register_resource(hass: HomeAssistant, url: str) -> bool:
@@ -83,31 +102,27 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     async def search_species(call: ServiceCall) -> dict[str, Any]:
         try:
             return await _manager(hass).async_search(call.data["query"])
-        except OpenPlantbookRateLimit as err:
-            raise ServiceValidationError(
-                translation_domain=DOMAIN, translation_key="rate_limited",
-                translation_placeholders={"seconds": str(err.retry_after)},
-            ) from err
-        except OpenPlantbookAuthError as err:
-            raise ServiceValidationError(translation_domain=DOMAIN, translation_key="invalid_auth") from err
-        except OpenPlantbookConnectionError as err:
-            raise ServiceValidationError(translation_domain=DOMAIN, translation_key="cannot_connect") from err
         except OpenPlantbookError as err:
-            raise ServiceValidationError(
-                translation_domain=DOMAIN, translation_key="lookup_failed",
-                translation_placeholders={"error": str(err) or type(err).__name__},
-            ) from err
+            raise _lookup_error(err) from err
 
     async def get_species(call: ServiceCall) -> dict[str, Any]:
         manager = _manager(hass)
-        sp = await manager.async_get_species(call.data["species"], bool(call.data.get("refresh")))
+        try:
+            sp = await manager.async_get_species(
+                call.data["species"], bool(call.data.get("refresh")), raise_errors=True,
+            )
+        except OpenPlantbookError as err:
+            raise _lookup_error(err) from err
         return {"species": sp, "suggestion": manager.suggest(sp)}
 
     async def add_plant(call: ServiceCall) -> dict[str, Any]:
         return {"plant_id": await _manager(hass).async_add_plant(dict(call.data))}
 
     async def refresh_species(call: ServiceCall) -> None:
-        await _manager(hass).async_refresh_species(call.data.get("plant_id"))
+        try:
+            await _manager(hass).async_refresh_species(call.data.get("plant_id"))
+        except OpenPlantbookError as err:
+            raise _lookup_error(err) from err
 
     hass.services.async_register(
         DOMAIN, "search_species", search_species,
@@ -161,6 +176,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreenFingerConfigEntry) 
 
     entry.async_on_unload(hass.bus.async_listen(er.EVENT_ENTITY_REGISTRY_UPDATED, _entity_registry_updated))
     entry.async_on_unload(hass.bus.async_listen(dr.EVENT_DEVICE_REGISTRY_UPDATED, _device_registry_updated))
+    # the days left change at midnight: one timer for every plant
+    entry.async_on_unload(
+        async_track_time_change(hass, lambda _now: manager.async_refresh_all(), hour=0, minute=1, second=0)
+    )
     if client is not None:
         entry.async_create_background_task(hass, manager.async_fill_missing_species(), "green_finger_species")
     return True
@@ -176,4 +195,7 @@ async def _async_update_listener(hass: HomeAssistant, entry: GreenFingerConfigEn
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: GreenFingerConfigEntry) -> bool:
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unloaded:
+        await entry.runtime_data.async_flush()  # species downloaded a moment ago must survive the reload
+    return unloaded

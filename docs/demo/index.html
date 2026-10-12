@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Green Finger - demo page</title>
+<!--
+  A small stand-in for Home Assistant that shows the real card with made-up plants.
+  It is only used to take the screenshots in the README and to look at the layout at different widths.
+  Open it in a browser:  index.html?scene=list-large&theme=dark
+  scenes: list-large, list-compact, single-large, single-compact, filter, info-mine, info-opb, form-add, form-add-more, form-edit
+-->
+<style>
+  :root{
+    --primary-color:#03a9f4;--text-primary-color:#fff;--primary-text-color:#e1e1e1;--secondary-text-color:#9b9b9b;
+    --card-background-color:#1c1c1c;--secondary-background-color:#282828;--divider-color:rgba(225,225,225,.12);
+    --lovelace-background:#111;
+  }
+  html[data-theme=light]{
+    --primary-text-color:#212121;--secondary-text-color:#727272;--card-background-color:#fff;
+    --secondary-background-color:#ececec;--divider-color:rgba(0,0,0,.12);--lovelace-background:#f4f4f4;
+  }
+  html,body{margin:0}
+  body{background:var(--lovelace-background);color:var(--primary-text-color);font-family:Roboto,"Segoe UI",system-ui,sans-serif;font-size:14px;padding:12px}
+  #app{margin:0 auto;max-width:var(--demo-width,1180px)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="mdi.js"></script>
+<script>
+/* ha-icon stand-in: draws the Material Design Icon with the given name */
+class HaIcon extends HTMLElement {
+  static get observedAttributes() { return ['icon']; }
+  constructor() {
+    super();
+    this.attachShadow({ mode: 'open' });
+    this.shadowRoot.innerHTML = '<style>:host{display:inline-flex;vertical-align:middle;width:var(--mdc-icon-size,24px);height:var(--mdc-icon-size,24px)}svg{width:100%;height:100%;fill:currentColor}</style><svg viewBox="0 0 24 24"><path id="p" d=""/></svg>';
+  }
+  connectedCallback() { this._draw(); }
+  attributeChangedCallback() { this._draw(); }
+  _draw() {
+    const name = String(this.getAttribute('icon') || '').replace('mdi:', '');
+    const p = this.shadowRoot.getElementById('p');
+    if (p) p.setAttribute('d', (window.MDI && window.MDI[name]) || '');
+  }
+}
+customElements.define('ha-icon', HaIcon);
+</script>
+<script src="../../custom_components/green_finger/frontend/green-finger-card.js"></script>
+<script>
+const params = new URLSearchParams(location.search);
+const scene = params.get('scene') || 'list-large';
+document.documentElement.dataset.theme = params.get('theme') || 'dark';
+if (params.get('w')) document.documentElement.style.setProperty('--demo-width', params.get('w') + 'px');
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const local = (off) => {
+  const d = new Date(); d.setDate(d.getDate() + off);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+};
+
+/* made-up plant pictures: a pot and a few leaves, in different colours */
+function art(seed, hue, pot) {
+  let s = seed;
+  const rnd = () => { s = (s * 1664525 + 1013904223) % 4294967296; return s / 4294967296; };
+  let leaves = '';
+  for (let i = 0; i < 11; i++) {
+    const ang = -75 + i * 15 + rnd() * 8;
+    const len = 20 + rnd() * 10;
+    leaves += '<ellipse cx="50" cy="' + (64 - len) + '" rx="' + (6 + rnd() * 3).toFixed(1) + '" ry="' + len.toFixed(1) +
+      '" transform="rotate(' + ang.toFixed(1) + ' 50 66)" fill="hsl(' + (hue + rnd() * 18 - 9).toFixed(0) + ',55%,' + (30 + rnd() * 16).toFixed(0) + '%)"/>';
+  }
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#e6efe4"/>' + leaves +
+    '<path d="M32 66h36l-5 28H37z" fill="' + pot + '"/><rect x="30" y="62" width="40" height="8" rx="3" fill="' + pot + '"/></svg>';
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+}
+
+const AREAS = { living_room: 'Living room', kitchen: 'Kitchen', bedroom: 'Bedroom', hallway: 'Hallway', office: 'Office', dining_room: 'Dining room' };
+const SPECIES = {
+  'monstera deliciosa': {
+    pid: 'monstera deliciosa', display_pid: 'Monstera deliciosa', alias: 'swiss cheese plant', category: 'Araceae', origin: 'Central America',
+    watering: 'Water when the top 3-4 cm of soil feels dry: about every 7 days in summer and every 2 weeks in winter.',
+    fertilization: 'Feed monthly in spring and summer with a balanced liquid fertiliser (10-10-10). No feeding in winter.',
+    sunlight: 'Bright, indirect light. Avoid harsh midday sun.', soil: 'Airy, well draining mix with bark and perlite.',
+    pruning: 'Cut back long stems to keep a compact shape; wipe the leaves now and then.',
+    min_soil_moist: 30, max_soil_moist: 60, min_temp: 15, max_temp: 30, min_env_humid: 40, max_env_humid: 80,
+    min_light_lux: 1500, max_light_lux: 20000, min_soil_ec: 350, max_soil_ec: 2000, fetched_at: local(-1),
+    hue: 135, pot: '#c8714b',
+  },
+  'monstera adansonii': { pid: 'monstera adansonii', display_pid: 'Monstera adansonii', alias: 'five holes plant', hue: 120, pot: '#b9825b', min_soil_moist: 30, max_soil_moist: 60, min_temp: 15, max_temp: 30 },
+  'monstera obliqua': { pid: 'monstera obliqua', display_pid: 'Monstera obliqua', alias: 'window leaf', hue: 150, pot: '#a9694a', min_soil_moist: 30, max_soil_moist: 60, min_temp: 16, max_temp: 30 },
+  'ocimum basilicum': {
+    pid: 'ocimum basilicum', display_pid: 'Ocimum basilicum', alias: 'basil', category: 'Lamiaceae', origin: 'Tropical Asia',
+    watering: 'Keep the soil lightly moist; water every 2 to 3 days in summer.', fertilization: 'Feed every 2 weeks while growing.',
+    sunlight: 'Full sun, at least 6 hours a day.', soil: 'Rich, well draining potting soil.', pruning: 'Pinch out the tips to keep it bushy.',
+    min_soil_moist: 40, max_soil_moist: 60, min_temp: 18, max_temp: 30, fetched_at: local(-3), hue: 105, pot: '#c8714b',
+  },
+};
+
+/* the plants: [id, name, species, area, spot, interval, last watered (days ago), feed interval, last fed, extra attributes] */
+const PLANTS = [
+  ['monstera', 'Monstera', 'monstera deliciosa', 'living_room', 'by the big window', 7, 4, 30, 18, { moisture: 52, temperature: 21.5, battery: 88, ideal: [30, 60] }],
+  ['basil', 'Kitchen basil', 'ocimum basilicum', 'kitchen', 'windowsill', 3, 3, 14, 12, { moisture: 18, temperature: 23, battery: 64, ideal: [40, 60] }],
+  ['peace_lily', 'Peace lily', null, 'bedroom', 'next to the bed', 7, 9, 30, 10, {}],
+  ['snake_plant', 'Snake plant', null, 'hallway', 'on the shelf', 21, 7, 0, 30, {}],
+  ['aloe', 'Aloe vera', null, 'office', 'desk', 14, 5, 60, 40, { moisture: 35, temperature: 19, battery: 15, ideal: [20, 50] }],
+  ['rubber_plant', 'Rubber plant', null, 'dining_room', 'corner', 7, 6, 30, 5, { postponed: 3 }],
+];
+const zone = (v, lo, hi) => (v < lo - 10 ? 'dry' : (v < lo ? 'low' : (v <= hi ? 'ok' : (v <= hi + 10 ? 'high' : 'wet'))));
+const dayStatus = (interval, left) => (interval <= 0 ? 'rest' : (left < 0 ? 'overdue' : (left <= 1 ? 'due' : 'ok')));
+
+const states = {};
+const entities = {};
+let n = 0;
+for (const [id, name, species, area, spot, wi, wAgo, fi, fAgo, x] of PLANTS) {
+  n += 1;
+  const post = x.postponed || 0;
+  const wLeft = wi - wAgo + post, fLeft = fi > 0 ? fi - fAgo : null;
+  const ideal = x.ideal || [20, 60];
+  const ms = x.moisture != null ? zone(x.moisture, ideal[0], ideal[1]) : null;
+  const ws = dayStatus(wi, wLeft), fs = dayStatus(fi, fLeft);
+  const needsW = ws === 'overdue' || ws === 'due' || ms === 'dry' || ms === 'low';
+  const needsF = fs === 'overdue' || fs === 'due';
+  const rec = species && SPECIES[species];
+  states['sensor.' + id] = {
+    entity_id: 'sensor.' + id, last_updated: id,
+    state: needsW && needsF ? 'needs_both' : (needsW ? 'needs_water' : (needsF ? 'needs_feed' : 'ok')),
+    attributes: {
+      green_finger: true, plant_id: id, plant_name: name, common_name: null, display_name: name,
+      species: species, species_name: rec ? rec.display_pid : null, species_alias: rec ? rec.alias : null,
+      common_names: rec ? [rec.alias.replace(/^./, (c) => c.toUpperCase())] : [],
+      picture: art(n * 7919, rec ? rec.hue : [95, 140, 120, 150, 110, 130][n % 6], ['#c8714b', '#b9825b', '#a9694a', '#d08a5f'][n % 4]),
+      species_picture: null, user_picture: false, area: AREAS[area], location: spot,
+      fertiliser_npk: species ? [10, 10, 10] : null, fertiliser_npk_label: species ? '10-10-10' : null, fertiliser_name: species ? 'Liquid plant food' : null,
+      soil_mix: species ? [{ name: 'potting soil', percent: 60 }, { name: 'perlite', percent: 30 }, { name: 'bark', percent: 10 }] : [],
+      soil_notes: species ? 'Drains well' : null, inside: true,
+      last_watered: local(-wAgo), last_fertilised: local(-fAgo), water_interval: wi, feed_interval: fi,
+      water_days_left: wLeft, feed_days_left: fLeft, water_status: ws, feed_status: fs,
+      next_water: local(wLeft), next_feed: fLeft != null ? local(fLeft) : null,
+      water_postponed_days: post, feed_postponed_days: 0, auto_watered: !!x.moisture,
+      water_period: '1 Jan - 31 Dec', feed_period: fi > 0 ? '1 Mar - 30 Nov' : '',
+      water_schedule: [[1, 1, 12, 31, wi]], feed_schedule: fi > 0 ? [[3, 1, 11, 30, fi]] : [],
+      moisture_entity: x.moisture != null ? 'sensor.' + id + '_soil_moisture' : null,
+      moisture: x.moisture != null ? x.moisture : null, temperature: x.temperature != null ? x.temperature : null,
+      battery: x.battery != null ? x.battery : null, sensor_name: x.moisture != null ? 'Plant sensor ' + n : null,
+      moisture_status: ms, temperature_status: x.temperature != null ? 'ok' : null,
+      ideal_moisture: ideal, ideal_temperature: [15, 30],
+      notes: id === 'monstera' ? 'Turn the pot a quarter turn every week.\nWipe the leaves once a month.' : (id === 'basil' ? 'Harvest from the top.' : null),
+    },
+  };
+  entities['sensor.' + id] = { platform: 'green_finger', entity_id: 'sensor.' + id };
+  if (x.moisture != null) {
+    states['sensor.' + id + '_soil_moisture'] = {
+      entity_id: 'sensor.' + id + '_soil_moisture', state: String(x.moisture), last_updated: id + 's',
+      attributes: { device_class: 'moisture', friendly_name: 'Plant sensor ' + n + ' Soil moisture' },
+    };
+  }
+}
+states['sensor.spare_soil_moisture'] = {
+  entity_id: 'sensor.spare_soil_moisture', state: '41', last_updated: 'spare',
+  attributes: { device_class: 'moisture', friendly_name: 'Spare sensor Soil moisture' },
+};
+const areas = {};
+Object.keys(AREAS).forEach((k) => { areas[k] = { area_id: k, name: AREAS[k] }; });
+
+const hass = {
+  states, entities, areas, devices: {}, language: 'en',
+  callService: async (domain, service, data, target) => {
+    const s = target && states[target.entity_id]; if (!s) return;
+    const a = { ...s.attributes };
+    if (service === 'water') { a.last_watered = local(0); a.water_days_left = a.water_interval; a.water_status = 'ok'; a.water_postponed_days = 0; }
+    if (service === 'fertilise') { a.last_fertilised = local(0); a.feed_days_left = a.feed_interval; a.feed_status = 'ok'; }
+    if (service === 'postpone') { a.water_postponed_days += data.days; a.water_days_left += data.days; }
+    states[s.entity_id] = { ...s, attributes: a, last_updated: String(Date.now()) };
+    setHass();
+  },
+  callWS: async (msg) => {
+    await sleep(120);
+    const d = msg.service_data || {};
+    if (msg.service === 'search_species') {
+      const q = String(d.query || '').toLowerCase();
+      const hits = Object.values(SPECIES).filter((r) => r.pid.includes(q) || (r.alias || '').includes(q));
+      return { response: { results: hits.map((r) => ({
+        pid: r.pid, display: r.display_pid, alias: r.alias, image_url: art(r.pid.length * 31, r.hue, r.pot),
+        common_names: [r.alias], min_soil_moist: r.min_soil_moist, max_soil_moist: r.max_soil_moist, min_temp: r.min_temp, max_temp: r.max_temp,
+      })), note: null } };
+    }
+    if (msg.service === 'get_species') {
+      const r = SPECIES[String(d.species).toLowerCase()] || null;
+      const sp = r ? { ...r, image_url: art(r.pid.length * 31, r.hue, r.pot), common_names: [{ name: r.alias, language_code: 'en' }] } : null;
+      return { response: { species: sp, suggestion: r ? {
+        name: r.alias.replace(/^./, (c) => c.toUpperCase()), common_names: [r.alias.replace(/^./, (c) => c.toUpperCase())],
+        picture: art(r.pid.length * 31, r.hue, r.pot), water: [[1, 1, 12, 31, 7]], feed: [[3, 1, 11, 30, 30]],
+        moisture_range: [r.min_soil_moist, r.max_soil_moist], temperature_range: [r.min_temp, r.max_temp], npk: [10, 10, 10],
+      } : {} } };
+    }
+    return { response: {} };
+  },
+};
+
+const wide = scene.startsWith('list') || ['filter', 'info-mine', 'info-opb', 'form-add', 'form-add-more', 'form-edit'].includes(scene);
+const app = document.getElementById('app');
+let card;
+function make(tag, config) {
+  card = document.createElement(tag);
+  card.setConfig(config);
+  app.appendChild(card);
+  card.hass = hass;
+}
+function setHass() { hass.states = { ...states }; card.hass = hass; }
+const click = (sel) => { const el = card.shadowRoot.querySelector(sel); if (el) el.click(); return el; };
+async function typeSearch(text) {
+  const q = card.shadowRoot.getElementById('q');
+  q.value = text;
+  q.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+  await sleep(1300);
+}
+
+(async () => {
+  if (scene.startsWith('single')) {
+    app.style.setProperty('max-width', '520px');
+    make('green-finger-plant-card', { entity: 'sensor.monstera', size: scene === 'single-compact' ? 'compact' : 'large' });
+    return;
+  }
+  const size = scene === 'list-compact' || scene === 'filter' ? 'compact' : 'large';
+  make('green-finger-card', { title: 'Plants', size });
+  if (scene === 'filter') click('[data-a=fw]');
+  if (scene === 'info-mine' || scene === 'info-opb') {
+    click('[data-e="sensor.monstera"][data-a=info]');
+    if (scene === 'info-opb') { click('[data-a=tab][data-t=opb]'); await sleep(400); }
+  }
+  if (scene.startsWith('form-add')) {
+    click('[data-a=add]');
+    await typeSearch('monstera');
+    click('.res');
+    await sleep(500);
+    if (scene === 'form-add-more') {
+      const root = card.shadowRoot;
+      root.querySelectorAll('details.sx').forEach((d) => { if (['care', 'soil'].includes(d.dataset.sec)) d.open = true; });
+      const body = root.querySelector('.db'); if (body) body.scrollTop = 520;
+    }
+  }
+  if (scene === 'form-edit') {
+    click('[data-e="sensor.monstera"][data-a=edit]');
+    await sleep(200);
+    card.shadowRoot.querySelectorAll('details.sx').forEach((d) => { if (d.dataset.sec === 'care') d.open = true; });
+  }
+})();
+</script>
+</body>
+</html>

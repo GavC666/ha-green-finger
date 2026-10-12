@@ -9,6 +9,9 @@
           "needs_feed": "mdi:sack",
           "needs_both": "mdi:alert-circle"
         }
+      },
+      "needing_care": {
+        "default": "mdi:watering-can-outline"
       }
     },
     "button": {

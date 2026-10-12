@@ -5,7 +5,6 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-
 from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
@@ -259,6 +258,8 @@ class PlantSubentryFlow(ConfigSubentryFlow):
                       "fertiliser_name", "soil_notes", "notes", "last_watered", "last_fertilised"):
                 if k in flat or k in ("moisture_entity", "common_name", "area"):
                     self._values[k] = flat.get(k)
+            if not str(flat.get("name") or "").strip():
+                errors["base"] = "name_required"
             self._values["inside"] = bool(flat.get("inside", True))
             self._values["auto_watered"] = bool(flat.get("auto_watered"))
             lo, hi = flat.get("moisture_min"), flat.get("moisture_max")
@@ -270,7 +271,7 @@ class PlantSubentryFlow(ConfigSubentryFlow):
             try:
                 self._values["soil_mix"] = logic.parse_soil_mix(flat.get("soil_mix"))
             except ValueError as err:
-                errors["base"] = "invalid_soil_mix"
+                errors.setdefault("base", "invalid_soil_mix")
                 placeholders["line"] = str(err)
             if not errors:
                 own = self._get_reconfigure_subentry().subentry_id if self._reconfigure else None

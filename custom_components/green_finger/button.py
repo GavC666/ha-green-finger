@@ -18,7 +18,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     for subentry_id, subentry in entry.subentries.items():
         if subentry.subentry_type == SUBENTRY_PLANT:
             async_add_entities(
-                [GreenFingerButton(manager, subentry_id, "water"), GreenFingerButton(manager, subentry_id, "fertilise")],
+                [GreenFingerButton(manager, subentry_id, kind) for kind in ("water", "fertilise")],
                 config_subentry_id=subentry_id,
             )
 

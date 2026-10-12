@@ -35,6 +35,7 @@ SEARCH_GENERA = 3
 SEARCH_CACHE_SECONDS = 600
 SEARCH_CACHE_MAX = 40
 UNKNOWN_SPECIES_SECONDS = 6 * 3600
+UNKNOWN_SPECIES_MAX = 200
 
 
 def species_is_saved(record: dict[str, Any] | None) -> bool:
@@ -59,7 +60,9 @@ def clean_periods(value: Any) -> list[list[int]]:
             sm, sd, em, ed, days = (int(float(x)) for x in list(p)[:5])
         except (TypeError, ValueError):
             continue
-        if not (1 <= sm <= 12 and 1 <= em <= 12 and 1 <= sd <= logic.LAST_DAY[sm - 1] and 1 <= ed <= logic.LAST_DAY[em - 1]):
+        if not (1 <= sm <= 12 and 1 <= em <= 12):
+            continue
+        if not (1 <= sd <= logic.LAST_DAY[sm - 1] and 1 <= ed <= logic.LAST_DAY[em - 1]):
             continue
         out.append([sm, sd, em, ed, max(0, min(days, 365))])
     return out[: logic.MAX_PERIODS]
@@ -84,10 +87,11 @@ def clean_soil_mix(value: Any) -> list[dict[str, Any]]:
             return logic.parse_soil_mix(value)
         except ValueError as err:
             raise _invalid("invalid_soil_mix", line=str(err)) from err
-    lines = []
-    for c in value or []:
-        if isinstance(c, dict) and c.get("name") and logic.to_float(c.get("percent")) is not None:
-            lines.append(f"{logic.to_float(c['percent']):g}% {c['name']}")
+    lines = [
+        f"{logic.to_float(c['percent']):g}% {c['name']}"
+        for c in value or []
+        if isinstance(c, dict) and c.get("name") and logic.to_float(c.get("percent")) is not None
+    ]
     return clean_soil_mix("\n".join(lines)) if lines else []
 
 
@@ -154,6 +158,8 @@ class GreenFingerManager:
         self._search_cache: dict[str, tuple[float, dict[str, Any]]] = {}
         self._inflight: dict[str, asyncio.Task] = {}
         self._unknown: dict[str, float] = {}  # species OpenPlantbook does not know (time of the "not found")
+        self._dirty = False  # species data waiting to be written
+        self.summary: Any = None  # the "plants needing care" sensor, once it exists
 
     # ---------------------------------------------------------------- basics
     @property
@@ -169,12 +175,30 @@ class GreenFingerManager:
 
     @callback
     def _save_species(self) -> None:
-        self._store.async_delay_save(lambda: self.species, 1)
+        self._dirty = True
+        self._store.async_delay_save(self._species_data, 1)
+
+    @callback
+    def _species_data(self) -> dict[str, dict[str, Any]]:
+        self._dirty = False
+        return self.species
+
+    async def async_flush(self) -> None:
+        """Write species data that is still waiting (before a reload would drop it)."""
+        if self._dirty:
+            self._dirty = False
+            await self._store.async_save(self.species)
 
     @callback
     def async_refresh_all(self) -> None:
         for ent in list(self.entities.values()):
             ent.refresh()
+
+    @callback
+    def async_update_summary(self) -> None:
+        """Tell the "plants needing care" sensor that a plant changed."""
+        if self.summary is not None:
+            self.summary.recompute()
 
     @callback
     def async_refresh_changed(self) -> None:
@@ -211,7 +235,13 @@ class GreenFingerManager:
                 raise _invalid("sensor_in_use", sensor=entity_id, plant=sub.title)
 
     # --------------------------------------------------------------- species
-    async def async_get_species(self, pid: str, refresh: bool = False) -> dict[str, Any] | None:
+    async def async_get_species(
+        self, pid: str, refresh: bool = False, raise_errors: bool = False,
+    ) -> dict[str, Any] | None:
+        """The saved record of a species. OpenPlantbook is asked only when nothing is saved or ``refresh`` is set.
+
+        A failed request returns the saved record (or None) unless ``raise_errors`` is set.
+        """
         pid = (pid or "").strip().lower()
         if not pid:
             return None
@@ -224,25 +254,33 @@ class GreenFingerManager:
         if missing_at is not None and not refresh and time.monotonic() - missing_at < UNKNOWN_SPECIES_SECONDS:
             return cached  # asked recently and OpenPlantbook does not have it: do not ask again
         running = self._inflight.get(pid)
-        if running is not None:  # the same species is already being downloaded: share that request
-            return await asyncio.shield(running)
-        task = self.hass.async_create_task(self._download_species(pid, cached))
-        self._inflight[pid] = task
+        if running is None:  # otherwise the same species is already being downloaded: share that request
+            running = self.hass.async_create_task(self._download_species(pid))
+            self._inflight[pid] = running
+            running.add_done_callback(lambda task, key=pid: self._download_done(key, task))
         try:
-            return await task
-        finally:
-            self._inflight.pop(pid, None)
-
-    async def _download_species(self, pid: str, cached: dict[str, Any] | None) -> dict[str, Any] | None:
-        assert self.client is not None
-        try:
-            raw = await self.client.async_detail(pid)
+            record = await asyncio.shield(running)
         except OpenPlantbookError as err:
+            if raise_errors:
+                raise
             _LOGGER.warning("OpenPlantbook lookup of %s failed: %s", pid, err)
             return cached
+        return record or cached
+
+    @callback
+    def _download_done(self, pid: str, task: asyncio.Task) -> None:
+        self._inflight.pop(pid, None)
+        if not task.cancelled():
+            task.exception()  # a failure was already handed to every caller that waited for it
+
+    async def _download_species(self, pid: str) -> dict[str, Any] | None:
+        assert self.client is not None
+        raw = await self.client.async_detail(pid)
         if not raw:
+            if len(self._unknown) >= UNKNOWN_SPECIES_MAX:
+                self._unknown.pop(next(iter(self._unknown)))
             self._unknown[pid] = time.monotonic()
-            return cached
+            return None
         self._unknown.pop(pid, None)
         data = {k: raw[k] for k in SPECIES_KEEP if k in raw}
         data.setdefault("pid", pid)
@@ -251,6 +289,7 @@ class GreenFingerManager:
         if data["pid"] != pid:
             self.species[pid] = data
         self._save_species()
+        self.async_refresh_all()  # plants of this species pick up the new data
         return data
 
     def _result_row(self, hit: dict[str, Any], via: str | None = None) -> dict[str, Any]:
@@ -426,5 +465,5 @@ class GreenFingerManager:
         for sid in ids:
             pid = (self.plant(sid) or {}).get("species")
             if pid:
-                await self.async_get_species(pid, refresh=True)
+                await self.async_get_species(pid, refresh=True, raise_errors=True)
         self.async_refresh_all()

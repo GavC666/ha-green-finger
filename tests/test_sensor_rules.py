@@ -66,11 +66,16 @@ async def test_update_plant_rejects_a_sensor_in_use_but_keeps_its_own(hass: Home
 async def test_subentry_form_reports_a_sensor_in_use(hass: HomeAssistant) -> None:
     entry = _entry({"a": _plant("Fig", "sensor.soil_1")})
     await _setup(hass, entry)
-    result = await hass.config_entries.subentries.async_init((entry.entry_id, SUBENTRY_PLANT), context={"source": "user"})
+    result = await hass.config_entries.subentries.async_init(
+        (entry.entry_id, SUBENTRY_PLANT), context={"source": "user"},
+    )
     assert result["step_id"] == "plant"
     result = await hass.config_entries.subentries.async_configure(
         result["flow_id"],
-        {"name": "Cactus", "inside": True, "moisture_entity": "sensor.soil_1", "more": {}, "ranges": {}, "nutrition": {}},
+        {
+            "name": "Cactus", "inside": True, "moisture_entity": "sensor.soil_1",
+            "more": {}, "ranges": {}, "nutrition": {},
+        },
     )
     assert result["type"] == "form"
     assert result["step_id"] == "plant"

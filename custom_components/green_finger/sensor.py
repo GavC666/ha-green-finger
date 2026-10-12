@@ -5,19 +5,27 @@ from dataclasses import dataclass
 from typing import Any
 
 import voluptuous as vol
-
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers import (
     area_registry as ar,
+)
+from homeassistant.helpers import (
     config_validation as cv,
+)
+from homeassistant.helpers import (
     device_registry as dr,
+)
+from homeassistant.helpers import (
     entity_platform,
+)
+from homeassistant.helpers import (
     entity_registry as er,
 )
+from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.event import async_track_state_change_event, async_track_time_change
+from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.util import dt as dt_util
 
 from . import logic
@@ -38,6 +46,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     for subentry_id, subentry in entry.subentries.items():
         if subentry.subentry_type == SUBENTRY_PLANT:
             async_add_entities([GreenFingerSensor(manager, subentry_id)], config_subentry_id=subentry_id)
+    async_add_entities([PlantsNeedingCareSensor(manager, entry)])
 
     platform = entity_platform.async_get_current_platform()
     date_schema = {vol.Optional("date"): cv.date}
@@ -79,11 +88,9 @@ class GreenFingerSensor(SensorEntity):
     _attr_device_class = SensorDeviceClass.ENUM
     _attr_options = STATES
     _attr_translation_key = "plant"
-    # bulky or rarely useful attributes are kept out of the recorder database
-    _unrecorded_attributes = frozenset({
-        "common_names", "water_schedule", "feed_schedule", "soil_mix", "soil_notes", "species_picture",
-        "picture", "notes", "ideal_moisture", "ideal_temperature", "species_alias", "fertiliser_name",
-    })
+    # the state (ok / needs ...) is what history is about; the attributes are live values and would only
+    # fill the recorder database with one row per sensor reading
+    _unrecorded_attributes = frozenset(logic.ATTRIBUTE_NAMES)
 
     def __init__(self, manager: GreenFingerManager, subentry_id: str) -> None:
         self._manager = manager
@@ -119,13 +126,11 @@ class GreenFingerSensor(SensorEntity):
         manager.entities[self._subentry_id] = self
         self.async_on_remove(lambda: manager.entities.pop(self._subentry_id, None))
         self.async_on_remove(self._untrack)
-        self.async_on_remove(
-            async_track_time_change(self.hass, lambda _now: self.refresh(), hour=0, minute=1, second=0)
-        )
         entry = er.async_get(self.hass).async_get(self.entity_id)
         self._device_id = entry.device_id if entry else None
         self._retrack(self._recompute())
         self._added = True
+        manager.async_update_summary()
 
     # --------------------------------------------------------------- helpers
     def _resolve_link(self, moisture_entity: str) -> _SensorLink:
@@ -177,7 +182,8 @@ class GreenFingerSensor(SensorEntity):
             link = self._resolve_link(moisture_entity)
             tracked = link.tracked
             states = self.hass.states
-            for key, ent_id in (("moisture", link.moisture), ("temperature", link.temperature), ("battery", link.battery)):
+            wanted = (("moisture", link.moisture), ("temperature", link.temperature), ("battery", link.battery))
+            for key, ent_id in wanted:
                 st = states.get(ent_id) if ent_id else None
                 if st is not None and st.state not in _UNKNOWN:
                     readings[key] = st.state
@@ -233,6 +239,7 @@ class GreenFingerSensor(SensorEntity):
         self._retrack(self._recompute())
         self._sync_device_name()
         self.async_write_ha_state()
+        self._manager.async_update_summary()
 
     @callback
     def registry_changed(self, entity_id: str | None = None, device_id: str | None = None) -> None:
@@ -265,6 +272,18 @@ class GreenFingerSensor(SensorEntity):
         if device and device.name != wanted:
             reg.async_update_device(device.id, name=wanted)
 
+    @property
+    def care_needs(self) -> tuple[str, bool, bool] | None:
+        """(name, needs water, needs feeding) once the plant has been calculated."""
+        if not self._data:
+            return None
+        state = self._data["state"]
+        return (
+            str(self._data["attributes"].get("display_name") or self._subentry_id),
+            state in ("needs_water", "needs_both"),
+            state in ("needs_feed", "needs_both"),
+        )
+
     # --------------------------------------------------------------- actions
     async def async_water(self, date: Any = None) -> None:
         self._manager.async_mark(self._subentry_id, "water", date)
@@ -280,3 +299,67 @@ class GreenFingerSensor(SensorEntity):
 
     async def async_remove_plant(self) -> None:
         self._manager.async_remove_plant(self._subentry_id)
+
+
+class PlantsNeedingCareSensor(SensorEntity):
+    """How many plants need water or feeding right now, with their names (one per installation)."""
+
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+    _attr_translation_key = "needing_care"
+    _unrecorded_attributes = frozenset({"needing_water", "needing_feeding", "plants"})
+
+    def __init__(self, manager: GreenFingerManager, entry: ConfigEntry) -> None:
+        self._manager = manager
+        self._attr_unique_id = f"{entry.entry_id}_needing_care"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name="The Green Finger",
+            manufacturer="The Green Finger",
+            entry_type=DeviceEntryType.SERVICE,
+        )
+        self._water: tuple[str, ...] = ()
+        self._feed: tuple[str, ...] = ()
+        self._added = False
+
+    @property
+    def native_value(self) -> int:
+        return len(set(self._water) | set(self._feed))
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {
+            "needing_water": list(self._water),
+            "needing_feeding": list(self._feed),
+            "plants": sorted(set(self._water) | set(self._feed)),
+        }
+
+    async def async_added_to_hass(self) -> None:
+        manager = self._manager
+        manager.summary = self
+        self.async_on_remove(lambda: setattr(manager, "summary", None))
+        self._calculate()
+        self._added = True
+
+    def _calculate(self) -> bool:
+        water: list[str] = []
+        feed: list[str] = []
+        for ent in self._manager.entities.values():
+            needs = ent.care_needs
+            if needs is None:
+                continue
+            name, needs_water, needs_feed = needs
+            if needs_water:
+                water.append(name)
+            if needs_feed:
+                feed.append(name)
+        water_t, feed_t = tuple(sorted(water)), tuple(sorted(feed))
+        changed = (water_t, feed_t) != (self._water, self._feed)
+        self._water, self._feed = water_t, feed_t
+        return changed
+
+    @callback
+    def recompute(self) -> None:
+        """Called whenever a plant was recalculated; writes the state only when the lists changed."""
+        if self._added and self._calculate():
+            self.async_write_ha_state()

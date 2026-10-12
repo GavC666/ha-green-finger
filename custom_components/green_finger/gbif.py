@@ -1,7 +1,6 @@
 """Common-name lookup through GBIF (https://www.gbif.org), used when OpenPlantbook knows no match."""
 from __future__ import annotations
 
-import asyncio
 import logging
 from collections import Counter
 
@@ -23,7 +22,7 @@ async def async_common_name_genera(session: aiohttp.ClientSession, query: str, l
         async with session.get(GBIF_SEARCH, params=params, timeout=_TIMEOUT) as resp:
             resp.raise_for_status()
             data = await resp.json(content_type=None)
-    except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as err:
+    except (aiohttp.ClientError, TimeoutError, ValueError) as err:
         _LOGGER.debug("GBIF common-name lookup failed: %s", err)
         return []
     counts: Counter[str] = Counter()

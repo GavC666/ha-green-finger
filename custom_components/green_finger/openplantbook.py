@@ -1,7 +1,6 @@
 """Minimal async client for the OpenPlantbook API (https://open.plantbook.io)."""
 from __future__ import annotations
 
-import asyncio
 import time
 from typing import Any
 from urllib.parse import quote
@@ -82,8 +81,10 @@ class OpenPlantbookClient:
                 if resp.status == 429:
                     raise self._rate_limited(resp.headers)
                 payload = await resp.json(content_type=None)
-        except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+        except (aiohttp.ClientError, TimeoutError) as err:
             raise OpenPlantbookConnectionError(str(err)) from err
+        except ValueError as err:  # not JSON at all
+            raise OpenPlantbookError("unexpected answer from OpenPlantbook") from err
         token = payload.get("access_token") if isinstance(payload, dict) else None
         if not token:
             raise OpenPlantbookAuthError
@@ -98,7 +99,7 @@ class OpenPlantbookClient:
                 f"{BASE_URL}{path}", params=params, timeout=_TIMEOUT,
                 headers={"Authorization": f"Bearer {token}"},
             ) as resp:
-                if resp.status == 401:
+                if resp.status in (401, 403):
                     self._token = None
                     raise OpenPlantbookAuthError
                 if resp.status == 404:
@@ -107,8 +108,10 @@ class OpenPlantbookClient:
                     raise self._rate_limited(resp.headers)
                 resp.raise_for_status()
                 return await resp.json(content_type=None)
-        except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+        except (aiohttp.ClientError, TimeoutError) as err:
             raise OpenPlantbookConnectionError(str(err)) from err
+        except ValueError as err:  # not JSON at all
+            raise OpenPlantbookError("unexpected answer from OpenPlantbook") from err
 
     async def async_search(self, text: str) -> list[dict[str, Any]]:
         """Return [{pid, display_pid, alias, category}, ...]."""

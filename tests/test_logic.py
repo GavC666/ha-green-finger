@@ -191,3 +191,19 @@ def test_compute_exposes_location_picture_npk_and_soil():
     b = logic.compute(_plant(), sp, {}, date(2026, 10, 11))["attributes"]
     assert b["fertiliser_npk"] == [20.0, 20.0, 20.0]
     assert b["picture"] == "https://example.test/x.jpg" and b["user_picture"] is False
+
+
+def test_attribute_names_match_what_compute_returns():
+    plant = {"id": "p", "name": "Fig", "water": [[1, 1, 12, 31, 7]], "feed": [], "last_watered": "2026-10-01"}
+    attrs = logic.compute(plant, None, {}, date(2026, 10, 12))["attributes"]
+    assert set(attrs) == set(logic.ATTRIBUTE_NAMES), set(attrs) ^ set(logic.ATTRIBUTE_NAMES)
+    assert len(logic.ATTRIBUTE_NAMES) == len(set(logic.ATTRIBUTE_NAMES))
+
+
+def test_postponing_moves_the_due_date():
+    plant = {"id": "p", "name": "Fig", "water": [[1, 1, 12, 31, 7]], "feed": [], "last_watered": "2026-10-05",
+             "postpone_water": 3}
+    out = logic.compute(plant, None, {}, date(2026, 10, 12))["attributes"]
+    assert out["water_days_left"] == 3  # 7 + 3 - 7
+    assert out["next_water"] == "2026-10-15"
+    assert out["water_postponed_days"] == 3
