@@ -9,7 +9,7 @@
 (() => {
   'use strict';
 
-  const VER = '0.2.2';
+  const VER = '0.2.3';
   const DOMAIN = 'green_finger';
   const GRN = '#34d058', AMB = '#ffb000', RED = '#ff3b30', BLU = '#4aa8ff', MUT = 'var(--gf-mut)';
   const SEV_COL = [GRN, AMB, RED];
@@ -383,7 +383,12 @@
       if (ents && typeof ents === 'object') {
         const keys = Object.keys(ents);
         if (keys.some((k) => ents[k] && ents[k].platform)) {
-          return keys.filter((k) => ents[k].platform === DOMAIN && k.startsWith('sensor.'));
+          // the integration's summary sensor ("plants needing care") is a sensor too, but it is not a plant
+          return keys.filter((k) => {
+            if (ents[k].platform !== DOMAIN || !k.startsWith('sensor.')) return false;
+            const st = h.states[k];
+            return !st || !!(st.attributes && st.attributes.green_finger);
+          });
         }
       }
       return Object.keys(h.states).filter((k) => k.startsWith('sensor.') && h.states[k] && h.states[k].attributes && h.states[k].attributes.green_finger);
@@ -425,7 +430,7 @@
         sz.setAttribute('title', compact ? 'Switch to the large cards with gauges' : 'Switch to compact cards');
         const ic = sz.querySelector('ha-icon'); if (ic) ic.setAttribute('icon', compact ? 'mdi:view-agenda-outline' : 'mdi:view-list');
       }
-      let ps = this._ids.map((id) => h.states[id]).filter((s) => s && s.attributes);
+      let ps = this._ids.map((id) => h.states[id]).filter((s) => s && s.attributes && s.attributes.green_finger);
       if (!this._single) {
         ps.sort((a, b) => String(a.attributes.display_name).localeCompare(String(b.attributes.display_name)));
         if (this._f.water) ps = ps.filter((s) => ['needs_water', 'needs_both'].includes(s.state));

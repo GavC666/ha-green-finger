@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.3
+- Fix: the "All plants" list card showed an empty plant row (no name, no picture, "rest / rest") that could not be
+  deleted. It was the integration's own *Plants needing care* summary sensor being listed as if it were a plant.
+  The list now shows only real plants.
+
 ## 0.2.2
 - Card: the one-line summary of a collapsible section (for example *Care schedule: water every 7 d, feed every 30 d*)
   no longer pushes the section title onto two lines on a narrow phone; a dot never ends a line on its own.
