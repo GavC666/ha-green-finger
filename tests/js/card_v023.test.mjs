@@ -50,3 +50,18 @@ test('a plant that has no state yet is not shown, and does not break the list', 
   const root = mount(states, entities);
   assert.equal(root.querySelectorAll('#list .plant').length, 1);
 });
+
+test('large card: schedule under the name, notes above the buttons, no last-watered dates', () => {
+  const st = plant('sensor.fig', 'Fig');
+  st.attributes.notes = 'Turn the pot <b>a quarter</b>';
+  st.attributes.water_interval = 7; st.attributes.feed_interval = 30;
+  const root = mount({ 'sensor.fig': st }, { 'sensor.fig': { platform: 'green_finger' } });
+  const row = root.querySelector('#list .plant');
+  const infos = [...row.querySelectorAll('.head .info')].map((n) => n.textContent.trim());
+  assert.ok(infos.includes('Water every 7 days'));
+  assert.ok(infos.includes('Feed every 30 days'));
+  assert.ok(!/last|Watered/.test(row.textContent.replace(/Watered today/g, '')));
+  const notes = row.querySelector('.notes');
+  assert.equal(notes.textContent, 'Turn the pot <b>a quarter</b>');
+  assert.equal(notes.nextElementSibling.className, 'acts');
+});

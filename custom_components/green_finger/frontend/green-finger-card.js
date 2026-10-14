@@ -9,7 +9,7 @@
 (() => {
   'use strict';
 
-  const VER = '0.2.3';
+  const VER = '0.3.0';
   const DOMAIN = 'green_finger';
   const GRN = '#34d058', AMB = '#ffb000', RED = '#ff3b30', BLU = '#4aa8ff', MUT = 'var(--gf-mut)';
   const SEV_COL = [GRN, AMB, RED];
@@ -77,7 +77,7 @@
     return colHtml(label, vsvg(s), txt, MUT, sub);
   };
   const dayCol = (label, pfx, left, interval, last, extra) => {
-    const sub = 'last ' + last + '<br>every ' + interval + 'd' + (extra ? ' +' + extra : '');
+    const sub = extra ? 'postponed +' + extra + 'd' : '';
     if (left === null || left === undefined || !interval) return colHtml(label, vsvg(vrect(0, 1, MUT, false)), '?', MUT, sub);
     const cnt = Math.min(Math.max(Math.round(interval) || 1, 1), 60) + 1;
     let inner = '';
@@ -146,6 +146,7 @@
     .nm{font-size:118%;font-weight:600;line-height:1.15}
     .sci{font-size:78%;font-style:italic;opacity:.75;margin-top:2px}
     .info{font-size:72%;color:var(--gf-mut);margin-top:2px}
+    .notes{font-size:78%;margin-top:8px;padding:6px 8px;border-radius:8px;background:rgba(127,127,127,.12);white-space:pre-wrap;overflow-wrap:anywhere;max-height:6.5em;overflow:auto}
     .batt{position:absolute;top:10px;right:12px;text-align:right}
     .batt b{display:flex;align-items:center;justify-content:flex-end;font-size:90%;font-weight:600}
     .batt small{display:block;font-size:62%;color:var(--gf-mut);margin-top:1px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -491,10 +492,10 @@
       const cols = [];
       cols.push(a.water_interval > 0
         ? dayCol('WATER', 'kw' + hk, a.water_days_left, a.water_interval, fmt(a.last_watered), a.water_postponed_days)
-        : restCol('WATER', 'rest period', 'last ' + fmt(a.last_watered)));
+        : restCol('WATER', 'rest period', ''));
       cols.push(a.feed_interval > 0
         ? dayCol('FERTILISE', 'kf' + hk, a.feed_days_left, a.feed_interval, fmt(a.last_fertilised), a.feed_postponed_days)
-        : restCol('FERTILISE', 'rest period', 'last ' + fmt(a.last_fertilised)));
+        : restCol('FERTILISE', 'rest period', ''));
       const im = a.ideal_moisture || [20, 60], it = a.ideal_temperature || [15, 30];
       if (isNum(a.moisture)) cols.push(zCol('MOISTURE', Number(a.moisture), 0, 100, 50, im[0], im[1], 3, '%', ['dry', 'low', 'ok', 'high', 'wet'], 'ideal ' + im[0] + DASH + im[1] + '%'));
       if (isNum(a.temperature)) cols.push(zCol('TEMP', Number(a.temperature), 0, 50, 50, it[0], it[1], 2, DEG, ['cold', 'cool', 'ok', 'warm', 'hot'], 'ideal ' + it[0] + DASH + it[1] + DEG));
@@ -505,14 +506,20 @@
       const sci = a.species_name && String(a.species_name).toLowerCase() !== String(a.display_name).toLowerCase()
         ? '<div class="sci">' + esc(a.species_name) + '</div>' : '';
       const where = [a.area, a.location].filter(Boolean).map(esc).join(' ' + DASH + ' ');
-      const post = a.water_postponed_days > 0 ? ' <span style="white-space:nowrap">' + DOT + ' postponed ' + a.water_postponed_days + 'd</span>' : '';
+      const sched = (label, interval, period, postponed) => '<div class="info">' + label + ' ' +
+        (interval > 0 ? 'every ' + plural(interval, 'day') : 'resting') +
+        (period && period !== '1 Jan - 31 Dec' ? ' <span style="white-space:nowrap">' + DOT + ' ' + esc(period) + '</span>' : '') +
+        (postponed > 0 ? ' <span style="white-space:nowrap">' + DOT + ' postponed ' + postponed + 'd</span>' : '') + '</div>';
+      const notes = a.notes && String(a.notes).trim()
+        ? '<div class="notes" title="Notes">' + esc(String(a.notes).trim()) + '</div>' : '';
       return '<div class="plant" style="background:' + this._bg(sev) + '">' + batt +
         '<div class="head" data-a="info" data-e="' + esc(eid) + '">' + pic + '<div style="min-width:0"><div class="nm">' + esc(a.display_name) + '</div>' + sci +
+        sched('Water', a.water_interval, a.water_period, a.water_postponed_days) +
+        sched('Feed', a.feed_interval, a.feed_period, a.feed_postponed_days) +
         (where ? '<div class="info"><ha-icon icon="mdi:map-marker" style="--mdc-icon-size:13px"></ha-icon> ' + where + '</div>' : '') +
-        '<div class="info">Watered ' + fmt(a.last_watered) + ' (' + ago(a.last_watered) + ')' +
-        (a.water_period && a.water_period !== '1 Jan - 31 Dec' ? ' <span style="white-space:nowrap">' + DOT + ' ' + esc(a.water_period) + '</span>' : '') + post + '</div></div></div>' +
+        '</div></div>' +
         '<div class="gauges" style="grid-template-columns:repeat(' + cols.length + ',1fr)">' + cols.join('') + '</div>' +
-        '<div class="acts">' + this._btn('water', 'mdi:watering-can', BLU, eid, 'Watered today') + this._btn('feed', 'mdi:sack', GRN, eid, 'Fertilised today') +
+        notes + '<div class="acts">' + this._btn('water', 'mdi:watering-can', BLU, eid, 'Watered today') + this._btn('feed', 'mdi:sack', GRN, eid, 'Fertilised today') +
         this._btn('info', 'mdi:information', 'var(--primary-text-color)', eid, 'Information') + this._btn('edit', 'mdi:cog', '#ffcc00', eid, 'Edit plant') + '</div></div>';
     }
 

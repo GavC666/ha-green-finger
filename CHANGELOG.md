@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0
+- Large card: the watering and feeding schedule ("Water every 7 days", "Feed every 30 days", with the period and any
+  postponement) now sits under the plant name.
+- Large card: the plant's notes are shown in a box just above the buttons.
+- Large card: the "Watered ..." line and the "last ..." dates under the gauges are gone; the days left stay.
 ## 0.2.3
 - Fix: the "All plants" list card showed an empty plant row (no name, no picture, "rest / rest") that could not be
   deleted. It was the integration's own *Plants needing care* summary sensor being listed as if it were a plant.
